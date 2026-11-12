@@ -97,42 +97,77 @@ def find_phrase(words: List[Dict[str, Any]], phrase: str) -> Optional[Tuple[int,
     return None
 
 
+SAY_GAP_SEC = 0.16   # breath between the narrator and the stickman's own line inside one scene
+
+
+def _load_clip(audio_dir: Path, stem: str) -> Tuple[np.ndarray, List[Dict[str, Any]]]:
+    """Trimmed, faded 48 kHz clip + its word timings relative to the trimmed start."""
+    wav = audio_dir / f"{stem}.wav"
+    meta_p = audio_dir / f"{stem}.json"
+    if not wav.is_file():
+        raise FileNotFoundError(f"missing TTS audio for {stem}: {wav}")
+    x24, sr24 = tts.read_wav(wav)
+    t0, t1 = tts.trim_bounds(x24, sr24)
+    a, b = max(0.0, t0 - 0.03), min(len(x24) / sr24, t1 + 0.03)
+    x = cosine_fade(decode(wav)[int(a * SR): int(b * SR)].astype(np.float64))
+    words_raw = json.loads(meta_p.read_text(encoding="utf-8"))["words"] if meta_p.is_file() else []
+    words = [{"word": w["word"], "start": round(max(0.0, w["start"] - a), 3), "end": round(max(0.0, w["end"] - a), 3)}
+             for w in words_raw]
+    return x, words
+
+
+def _shift(words: List[Dict[str, Any]], off: float) -> List[Dict[str, Any]]:
+    return [{"word": w["word"], "start": round(w["start"] + off, 3), "end": round(w["end"] + off, 3)} for w in words]
+
+
 def build_timeline(pkg: schemas.AnalysisPackage, audio_dir: Path
                    ) -> Tuple[Dict[str, Any], np.ndarray, List[np.ndarray]]:
-    """Returns (timeline, voice_track_mono, per-scene clips) at 48 kHz."""
+    """Returns (timeline, voice_track_mono, per-scene narration clips) at 48 kHz.
+
+    A scene with `speech` holds two clips: the narrator and the stickman's own line, in the order set by
+    speech.placement. `words` stays the narration's (scene-relative) so sfx and climax cues keep working;
+    the stickman's line is in the scene's `say` entry.
+    """
     scenes_tl: List[Dict[str, Any]] = []
     clips: List[np.ndarray] = []
+    placed: List[Tuple[float, np.ndarray]] = []
     t = 0.0
     for sc in pkg.scenes:
-        wav = audio_dir / f"{sc.id}.wav"
-        meta_p = audio_dir / f"{sc.id}.json"
-        if not wav.is_file():
-            raise FileNotFoundError(f"missing TTS audio for {sc.id}: {wav}")
-        x24, sr24 = tts.read_wav(wav)
-        t0, t1 = tts.trim_bounds(x24, sr24)
-        a, b = max(0.0, t0 - 0.03), min(len(x24) / sr24, t1 + 0.03)
-        x = decode(wav)[int(a * SR): int(b * SR)].astype(np.float64)
-        x = cosine_fade(x)
-        words_raw = json.loads(meta_p.read_text(encoding="utf-8"))["words"] if meta_p.is_file() else []
-        words = [{"word": w["word"], "start": round(max(0.0, w["start"] - a), 3), "end": round(max(0.0, w["end"] - a), 3)}
-                 for w in words_raw]
-        speech = len(x) / SR
+        x, words = _load_clip(audio_dir, sc.id)
+        n_len = len(x) / SR
+        say_entry = None
+        narr_off, speech = 0.0, n_len
+        if sc.speech and (audio_dir / f"{sc.id}{tts.SAY_SUFFIX}.wav").is_file():
+            y, ywords = _load_clip(audio_dir, f"{sc.id}{tts.SAY_SUFFIX}")
+            y_len = len(y) / SR
+            if sc.speech.placement == "before":
+                say_off, narr_off = 0.0, y_len + SAY_GAP_SEC
+            else:
+                narr_off, say_off = 0.0, n_len + SAY_GAP_SEC
+            speech = n_len + SAY_GAP_SEC + y_len
+            say_entry = {"text": sc.speech.text, "start": round(say_off, 4), "end": round(say_off + y_len, 4),
+                         "words": _shift(ywords, say_off)}
+            placed.append((t + say_off, y))
+        words = _shift(words, narr_off)
         pause = sc.narration.prosody.post_breath_pause_ms / 1000.0
-        scenes_tl.append({"scene_id": sc.id, "start_sec": round(t, 4), "speech_sec": round(speech, 4),
-                          "pause_sec": round(pause, 4), "end_sec": round(t + speech + pause, 4), "words": words})
+        entry = {"scene_id": sc.id, "start_sec": round(t, 4), "speech_sec": round(speech, 4),
+                 "pause_sec": round(pause, 4), "end_sec": round(t + speech + pause, 4), "words": words}
+        if say_entry:
+            entry["say"] = say_entry
+        scenes_tl.append(entry)
         clips.append(x)
+        placed.append((t + narr_off, x))
         t += speech + pause
     total = t + TAIL_SEC
     scenes_tl[-1]["end_sec"] = round(total, 4)  # tail belongs to the last scene
     voice = np.zeros(int(math.ceil(total * SR)))
-    for tl, x in zip(scenes_tl, clips):
-        s = int(round(tl["start_sec"] * SR))
+    for at, x in placed:
+        s = int(round(at * SR))
         voice[s:s + len(x)] += x[: len(voice) - s]
     return {"sample_rate": SR, "total_sec": round(total, 4), "scenes": scenes_tl,
             "bgm_id": pkg.render_config.bgm_id}, voice, clips
 
 
-# --------------------------------------------------------------------------- stems
 def room_tone(n: int, seed: int = 11) -> np.ndarray:
     rng = np.random.default_rng(seed)
     x = rng.standard_normal(n)

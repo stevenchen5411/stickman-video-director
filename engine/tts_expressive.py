@@ -376,6 +376,15 @@ def group_dialogue(scenes: List[Any]) -> List[List[Any]]:
     return groups
 
 
+SAY_SUFFIX = "_say"
+SAY_VOICES = ["Puck", "Aoede", "Fenrir", "Kore", "Charon"]   # the stickman's default voices, in order of preference
+
+
+def say_voice_for(narrator_voice: str) -> str:
+    """A voice for the stickman's own lines that differs from the narrator's."""
+    return next((v for v in SAY_VOICES if v != narrator_voice), SAY_VOICES[0])
+
+
 def _style(sc, base_style: str) -> str:
     d = sc.narration.prosody.acting_direction
     return f"{base_style} {d}".strip() if base_style else d
@@ -404,30 +413,33 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
 
     info: Dict[str, Dict[str, Any]] = {}
 
-    def finish(sc, x: np.ndarray, sr: int, is_ph: bool, key: str) -> None:
+    def finish(sc, x: np.ndarray, sr: int, is_ph: bool, key: str, stem: Optional[str] = None,
+               pace: Optional[float] = None, text: Optional[str] = None) -> None:
+        stem = stem or sc.id
         if sr != SR:
             x = np.interp(np.arange(int(len(x) * SR / sr)) / SR, np.arange(len(x)) / sr, x).astype(np.float32)
-        x = apply_pace(x, SR, sc.narration.prosody.pace_multiplier)
-        write_wav(adir / f"{sc.id}.wav", x, SR)
-        words = align_words(sc.narration.text, x, SR)
-        meta = {"scene_id": sc.id, "key": key, "placeholder": is_ph, "duration_sec": round(len(x) / SR, 3),
+        x = apply_pace(x, SR, sc.narration.prosody.pace_multiplier if pace is None else pace)
+        write_wav(adir / f"{stem}.wav", x, SR)
+        words = align_words(text or sc.narration.text, x, SR)
+        meta = {"scene_id": stem, "key": key, "placeholder": is_ph, "duration_sec": round(len(x) / SR, 3),
                 "words": words}
-        (adir / f"{sc.id}.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-        info[sc.id] = {"wav": str(adir / f"{sc.id}.wav"), **meta}
+        (adir / f"{stem}.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        info[stem] = {"wav": str(adir / f"{stem}.wav"), **meta}
 
     def cache_key(sc, voice: str, style: str) -> str:
         return hashlib.sha1(f"{sc.narration.text}|{voice}|{style}|{sc.narration.prosody.pace_multiplier}|{placeholder}".encode()).hexdigest()[:16]
 
-    def cached(sc, key: str) -> bool:
-        mp = adir / f"{sc.id}.json"
-        if force or not mp.is_file() or not (adir / f"{sc.id}.wav").is_file():
+    def cached(sc, key: str, stem: Optional[str] = None) -> bool:
+        stem = stem or sc.id
+        mp = adir / f"{stem}.json"
+        if force or not mp.is_file() or not (adir / f"{stem}.wav").is_file():
             return False
         meta = json.loads(mp.read_text(encoding="utf-8"))
         if meta.get("key") != key:
             return False
         if meta.get("placeholder") and not placeholder:
             return False  # a robotic fallback from an earlier quota failure: retry the real voice
-        info[sc.id] = {"wav": str(adir / f"{sc.id}.wav"), **meta}
+        info[stem] = {"wav": str(adir / f"{stem}.wav"), **meta}
         return True
 
     for group in group_dialogue(pkg.scenes):
@@ -467,6 +479,31 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
                     log.warning("TTS failed for %s (%s): placeholder used", sc.id, str(e)[:120])
                     x, sr = placeholder_speech(sc.narration.text, voice)
                     finish(sc, x, sr, True, keys[sc.id])
+
+    # the stickman's own lines: one short clip per scene that has `speech`, in a voice that contrasts the narrator
+    for sc in pkg.scenes:
+        sp = sc.speech
+        if sp is None:
+            continue
+        stem = f"{sc.id}{SAY_SUFFIX}"
+        narr_voice = resolve_voice(sc.narration.voice_profile_id, index, lib)[0]
+        if sp.voice_profile_id:
+            voice, base = resolve_voice(sp.voice_profile_id, index, lib)
+        else:
+            voice, base = say_voice_for(narr_voice), ""
+        style = f"{base} {sp.acting_direction}".strip()
+        key = hashlib.sha1(f"{sp.text}|{voice}|{style}|say|{placeholder}".encode()).hexdigest()[:16]
+        if cached(sc, key, stem):
+            continue
+        if not placeholder:
+            try:
+                x, sr = gemini_synthesize(client, sp.text, style, voice)
+                finish(sc, x, sr, False, key, stem, 1.0, sp.text)
+                continue
+            except Exception as e:  # noqa: BLE001 - keep the pipeline alive; mark placeholder
+                log.warning("TTS failed for %s (%s): placeholder used", stem, str(e)[:120])
+        x, sr = placeholder_speech(sp.text, voice)
+        finish(sc, x, sr, True, key, stem, 1.0, sp.text)
     return info
 
 

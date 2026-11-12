@@ -625,3 +625,93 @@ def test_queue_put_roundtrip(tmp_path):
     bad = json.loads(json.dumps(fixture)); bad["scenes"][0]["character"]["pose_id"] = "no_such_pose"
     assert c.put(f"/queue/{pid}", json=bad).status_code == 422
     assert c.put(f"/queue/{pid}", json={**fixture, "package_id": "other"}).status_code == 404
+
+
+# ------------------------------------------------------------------------- stickman speech
+def _speech_pkg(tmp_path, place="after"):
+    d = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    d["scenes"][0]["speech"] = {"text": "Wait, she did WHAT?!", "placement": place}
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    p = tmp_path / "pkg.json"
+    p.write_text(json.dumps(d), encoding="utf-8")
+    return p
+
+
+def test_speech_schema_rules():
+    schemas.Speech(text="Okay, that's wild.")
+    with pytest.raises(Exception):
+        schemas.Speech(text="[laughs] hi")
+    with pytest.raises(Exception):
+        schemas.Speech(text=" ".join(["word"] * 20))
+    assert sample_pkg().scenes[0].speech is None                    # packages without speech stay valid
+    assert tts.say_voice_for("Puck") == "Aoede" and tts.say_voice_for("Charon") == "Puck"
+
+
+@pytest.mark.parametrize("place", ["after", "before"])
+def test_speech_line_is_its_own_clip_placed_around_the_narration(tmp_path, place):
+    pkg = schemas.load_package(_speech_pkg(tmp_path / place, place))
+    info = tts.synthesize_package(pkg, tmp_path / place / "w", placeholder=True, library=LIB)
+    assert {"scene_02", "scene_02_say", "scene_03"} == set(info)
+    tl, voice, _ = am.build_timeline(pkg, tmp_path / place / "w" / "audio")
+    s0 = tl["scenes"][0]
+    say, n_first, n_last = s0["say"], s0["words"][0]["start"], s0["words"][-1]["end"]
+    assert say["text"] == "Wait, she did WHAT?!" and say["words"]
+    if place == "after":
+        assert say["start"] >= n_last and n_first < 0.1
+    else:
+        assert say["start"] == 0.0 and n_first >= say["end"]
+    assert s0["speech_sec"] >= say["end"] - 0.01 and s0["speech_sec"] >= n_last                # covers both clips
+    assert "say" not in tl["scenes"][1] and abs(len(voice) - tl["total_sec"] * am.SR) <= 2
+
+
+def test_placeholder_say_clip_is_retried_when_real_voice_is_requested(tmp_path, monkeypatch):
+    pkg = schemas.load_package(_speech_pkg(tmp_path))
+    tts.synthesize_package(pkg, tmp_path / "w", placeholder=True, library=LIB)
+    calls = []
+    monkeypatch.setattr(tts, "_client", lambda: object())
+    monkeypatch.setattr(tts, "gemini_synthesize", lambda c, text, style, voice, model=None:
+                        (calls.append((text, voice)) or (np.zeros(2400, dtype=np.float32), 24000)))
+    tts.synthesize_package(pkg, tmp_path / "w", placeholder=False, library=LIB)
+    assert ("Wait, she did WHAT?!", tts.say_voice_for("Charon")) in calls or any(t == "Wait, she did WHAT?!" for t, _ in calls)
+
+
+def test_director_cleans_and_caps_stickman_lines():
+    assert director.clean_say(None) is None and director.clean_say({"text": "  [sighs]  "}) is None
+    say = director.clean_say({"text": "[wow] " + "so " * 30, "placement": "before"})
+    assert say["placement"] == "before" and len(say["text"].split()) == schemas.MAX_SPEECH_WORDS and "[" not in say["text"]
+    fx = fake_fx()
+    scene = {"shot_id": "shot_01", "character_id": "nova_scientist", "pose_id": "shrug", "expression_id": "neutral",
+             "text": "Change the room.", "speech": {"text": "Seriously? That easy?", "expression_id": "no_such_face"}}
+    plan = {"title_variants": ["A", "B", "C"], "cover_scene_index": 0, "cover_text_hook": "go",
+            "scenes": [dict(scene) for _ in range(9)]}
+    raw = director.assemble_package(plan, fx, index(), {"niche": "habits"})
+    pkg = schemas.AnalysisPackage.model_validate(raw)
+    said = [s for s in pkg.scenes if s.speech]
+    assert len(said) == director.MAX_SPEECH_SCENES and said[0].speech.expression_id is None      # unknown face dropped
+    assert audit.scene_sec(raw["scenes"][0]) > audit.speech_sec("Change the room.", 1.0) + 0.5   # audit counts his line
+
+
+def test_speech_bubble_draws_and_envelope_ramps():
+    import cairo
+    import render_cairo as rc
+    say = {"text": "Wait, she did WHAT?!", "start": 1.0, "end": 2.4,
+           "words": [{"word": w, "start": 1.0 + i * 0.3, "end": 1.28 + i * 0.3} for i, w in enumerate("Wait, she did WHAT?!".split())]}
+    assert rc.say_presence(None, 1.0) == 0 and rc.say_presence(say, 0.5) == 0 and rc.say_presence(say, 1.8) == 1
+    assert 0 < rc.say_presence(say, 2.7) < 1 and rc.say_presence(say, 3.5) == 0
+    surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, 144, 256)
+    ctx = cairo.Context(surf)
+    rc.draw_speech_bubble(ctx, say, 0.5, (72, 120), 12, 144, 256, rc.DEFAULT_THEME)         # not yet visible
+    surf.flush()
+    assert not any(bytes(surf.get_data()))
+    rc.draw_speech_bubble(ctx, say, 2.0, (72, 120), 12, 144, 256, rc.DEFAULT_THEME)
+    surf.flush()
+    assert any(bytes(surf.get_data()))
+
+
+def test_render_draft_with_stickman_speech_stays_locked_to_audio(tmp_path, monkeypatch):
+    rc = _tiny(monkeypatch)
+    res = rc.render_package(_speech_pkg(tmp_path), "draft", tmp_path / "out", placeholder_tts=True, library=LIB)
+    mp4 = Path(res["video"])
+    assert mp4.stat().st_size > 1000 and abs(common.probe_duration(mp4) - res["duration_sec"]) < 0.3
+    tl = json.loads((tmp_path / "out" / ".work" / "pkg_20261112_snooze01" / "timeline.json").read_text())
+    assert tl["scenes"][0]["say"]["end"] <= tl["scenes"][0]["speech_sec"] + 1e-6

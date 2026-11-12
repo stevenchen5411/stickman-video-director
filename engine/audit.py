@@ -31,7 +31,11 @@ def speech_sec(text: str, pace: float) -> float:
 
 def scene_sec(scene: Dict[str, Any]) -> float:
     pr = scene["narration"]["prosody"]
-    return speech_sec(scene["narration"]["text"], pr.get("pace_multiplier", 1.0)) + pr.get("post_breath_pause_ms", 240) / 1000
+    sec = speech_sec(scene["narration"]["text"], pr.get("pace_multiplier", 1.0)) + pr.get("post_breath_pause_ms", 240) / 1000
+    say = scene.get("speech")
+    if say and say.get("text"):
+        sec += speech_sec(say["text"], 1.0) + 0.16   # the stickman's own line, after a short breath
+    return sec
 
 
 def is_active(scene: Dict[str, Any]) -> bool:

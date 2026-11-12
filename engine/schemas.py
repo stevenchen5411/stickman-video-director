@@ -305,6 +305,30 @@ class Narration(_Base):
         return v
 
 
+MAX_SPEECH_WORDS = 14
+
+
+class Speech(_Base):
+    """A short in-character line the stickman says himself: speech bubble + his own voice + lip-sync.
+
+    The narrator keeps telling the story as voice-over; this is the character reacting, asking or joking.
+    """
+    text: str = Field(min_length=1, max_length=100)
+    voice_profile_id: Optional[str] = None      # library voice id or Gemini voice name; default: contrasts the narrator
+    expression_id: Optional[str] = None         # face while he talks (library 03_expressions)
+    acting_direction: str = ""
+    placement: Literal["before", "after"] = "after"   # relative to the narration inside the scene
+
+    @field_validator("text")
+    @classmethod
+    def _short_and_verbatim(cls, v: str) -> str:
+        if _STAGE_DIRECTION_RE.search(v):
+            raise ValueError("speech text must be verbatim speech: put stage directions in acting_direction")
+        if len(v.split()) > MAX_SPEECH_WORDS:
+            raise ValueError(f"speech line too long ({len(v.split())} words, max {MAX_SPEECH_WORDS})")
+        return v
+
+
 class Scene(_Base):
     id: str
     source_shot_ref: SourceShotRef
@@ -312,6 +336,7 @@ class Scene(_Base):
     environment: SceneEnvironment
     visual_aid: VisualAid
     narration: Narration
+    speech: Optional[Speech] = None
 
     @property
     def has_motion(self) -> bool:
@@ -364,6 +389,8 @@ class AnalysisPackage(_Base):
             need("07_widgets", s.visual_aid.widget_id)
             need("08_overlays", s.visual_aid.overlay_id)
             need("12_voices", s.narration.voice_profile_id)
+            if s.speech:
+                need("03_expressions", s.speech.expression_id)
             for e in s.narration.prosody.emphasis_words:
                 need("14_sfx", e.trigger_sfx)
         return sorted(set(missing))

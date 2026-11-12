@@ -48,6 +48,21 @@ def clean_text(t: str) -> str:
     return re.sub(r"\s+", " ", STAGE_RE.sub("", t or "")).strip()
 
 
+MAX_SPEECH_SCENES = 6
+
+
+def clean_say(sp: Any) -> Optional[Dict[str, Any]]:
+    """Normalize an LLM-proposed stickman line; None when there is nothing usable."""
+    if not isinstance(sp, dict):
+        return None
+    text = " ".join(clean_text(sp.get("text", "")).split()[:schemas.MAX_SPEECH_WORDS])
+    if not re.search(r"[A-Za-z0-9]", text):
+        return None
+    return {"text": text, "voice_profile_id": None, "expression_id": None,
+            "acting_direction": clean_text(sp.get("acting_direction", ""))[:200],
+            "placement": "before" if sp.get("placement") == "before" else "after"}
+
+
 def words_norm(t: str) -> List[str]:
     return re.findall(r"[a-z0-9']+", t.lower())
 
@@ -90,6 +105,11 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
             "Write 8-14 scenes. Each scene `text` is verbatim spoken narration (<=18 words), in your own words; "
             "never copy 8+ consecutive words from source_shots. No stage directions, brackets or emojis in `text`.",
             "Put acting/delivery instructions ONLY in `acting_direction`.",
+            "Give the stickman a personality: on 3-5 scenes (not all) add `speech` = a short line the stickman himself "
+            f"says in a speech bubble (<={schemas.MAX_SPEECH_WORDS} words, verbatim, no brackets): a gut reaction, a "
+            "question the viewer is thinking, a joke, or a doubt. It must add something the narrator did NOT say. "
+            "The narrator keeps telling the story; the stickman reacts to it. placement='before' for a hook question "
+            "that sets up the narration, 'after' for a reaction to it. Leave `speech` out of the other scenes.",
             "Every scene needs `shot_id` copied from source_shots (the shot whose pacing/beat it echoes).",
             "Make most scenes move: set motion_id and/or overlay_id/widget_id.",
             "Exactly one scene has climax=true; set dramatic_beat=true on punchline scenes.",
@@ -104,6 +124,7 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
                 "scene_id": "", "transition_in_id": "", "prop_id": "", "widget_id": "", "overlay_id": "",
                 "fallback": {"type": "callout_card|chart_bar", "title": "", "subtitle": ""},
                 "text": "", "acting_direction": "", "pace_multiplier": 1.0,
+                "speech": {"text": "", "expression_id": "", "placement": "before|after", "acting_direction": ""},
                 "emphasis_words": [{"word": "", "stress": "", "trigger_sfx": ""}],
                 "dramatic_beat": False, "climax": False}],
         },
@@ -257,6 +278,10 @@ def assemble_package(plan: Dict[str, Any], fx: Dict[str, Any], index: schemas.Li
                            "fallback_visual_aid": fallback},
             "narration": {"character_id": cid, "voice_profile_id": voices[cid], "text": text,
                           "prosody": finalize_prosody({**ps, "text": text}, i, n, sfx_ids)}})
+        say = clean_say(ps.get("speech"))
+        if say and sum(1 for x in scenes if x.get("speech")) < MAX_SPEECH_SCENES:
+            say["expression_id"] = pick("03_expressions", (ps.get("speech") or {}).get("expression_id"), i, allow_new=False)
+            scenes[-1]["speech"] = say
     # exactly one climax scene
     if not any(s["narration"]["prosody"]["bgm_drop_on_climax"] for s in scenes) and n >= 1:
         scenes[max(0, n - 2)]["narration"]["prosody"]["bgm_drop_on_climax"] = True

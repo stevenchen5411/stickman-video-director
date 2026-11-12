@@ -680,6 +680,100 @@ def draw_captions(ctx, style: Dict[str, Any], words: List[Dict[str, Any]], t: fl
 
 
 # =========================================================================== scene composition
+def _wrap(ctx, words: List[str], max_w: float) -> List[List[int]]:
+    """Greedy word wrap -> lists of word indexes per line."""
+    lines: List[List[int]] = [[]]
+    space = text_width(ctx, " ")
+    cur = 0.0
+    for i, w in enumerate(words):
+        ww = text_width(ctx, w)
+        if lines[-1] and cur + space + ww > max_w:
+            lines.append([])
+            cur = 0.0
+        cur += (space if lines[-1] else 0.0) + ww
+        lines[-1].append(i)
+    return lines
+
+
+def say_presence(say: Optional[Dict[str, Any]], t: float) -> float:
+    """0..1 envelope of the stickman talking (ramps in before the line, lingers after it)."""
+    if not say:
+        return 0.0
+    a, b = say["start"] - 0.1, say["end"] + 0.4
+    return clamp((t - a) / 0.2) * clamp((b - t) / 0.25)
+
+
+def draw_speech_bubble(ctx, say: Dict[str, Any], t: float, head: Tuple[float, float], head_r: float,
+                       W: int, H: int, theme) -> None:
+    """Comic speech bubble above the stickman's head; words appear as he says them."""
+    t0, t1 = say["start"], say["end"]
+    if t < t0 - 0.05 or t > t1 + 0.6:
+        return
+    words = [w["word"] for w in say["words"]] or say["text"].split()
+    size = 0.044 * H
+    set_font(ctx, "DejaVu Sans Bold", size)
+    max_w = W * 0.72
+    lines = _wrap(ctx, words, max_w)
+    space = text_width(ctx, " ")
+    lw = [sum(text_width(ctx, words[i]) for i in ln) + space * (len(ln) - 1) for ln in lines]
+    pad = size * 0.7
+    bw, bh = max(lw) + 2 * pad, len(lines) * size * 1.3 + 2 * pad - size * 0.2
+    hx, hy = head
+    tail_len = size * 1.1
+    bx = min(max(hx - bw / 2, W * 0.04), W * 0.96 - bw)
+    by = max(H * 0.04, hy - head_r * 1.35 - tail_len - bh)
+    tip = (min(max(hx, bx + pad), bx + bw - pad), by + bh + tail_len)
+    p = clamp(spring_step(t - (t0 - 0.05), 300, 15), 0.0, 1.25)
+    fade = 1.0 - clamp((t - (t1 + 0.35)) / 0.25)
+    bob = 2.0 * math.sin(t * 3.2)
+    ctx.save()
+    ctx.translate(tip[0], tip[1] + bob)
+    ctx.scale(max(0.01, p), max(0.01, p))
+    ctx.translate(-tip[0], -tip[1])
+    ctx.push_group()
+    # tail first, then body, so the outline merges
+    tx = tip[0]
+    ctx.new_path()
+    ctx.move_to(tx - size * 0.55, by + bh - 2)
+    ctx.line_to(tip[0] + size * 0.05, tip[1])
+    ctx.line_to(tx + size * 0.55, by + bh - 2)
+    ctx.close_path()
+    setc(ctx, "#ffffff", theme)
+    ctx.fill_preserve()
+    setc(ctx, "#0f172a", theme)
+    ctx.set_line_width(max(2.0, size * 0.09))
+    ctx.set_line_join(cairo.LINE_JOIN_ROUND)
+    ctx.stroke()
+    rrect(ctx, bx, by, bw, bh, size * 0.8)
+    setc(ctx, "#ffffff", theme)
+    ctx.fill_preserve()
+    setc(ctx, "#0f172a", theme)
+    ctx.set_line_width(max(2.0, size * 0.09))
+    ctx.stroke()
+    # cover the seam between tail and body
+    ctx.new_path()
+    ctx.move_to(tx - size * 0.55 + 2, by + bh)
+    ctx.line_to(tx + size * 0.55 - 2, by + bh)
+    ctx.set_line_width(max(2.0, size * 0.09) + 1.0)
+    setc(ctx, "#ffffff", theme)
+    ctx.stroke()
+    set_font(ctx, "DejaVu Sans Bold", size)
+    y = by + pad + size * 0.85
+    for ln, wid in zip(lines, lw):
+        x = bx + (bw - wid) / 2
+        for i in ln:
+            seg = say["words"][i] if i < len(say["words"]) else None
+            wd = text_width(ctx, words[i])
+            if seg is None or t >= seg["start"] - 0.02:
+                active = seg is not None and seg["start"] <= t < seg["end"] + 0.04
+                draw_text(ctx, words[i], x, y, theme, "#ea580c" if active else "#0f172a")
+            x += wd + space
+        y += size * 1.3
+    ctx.pop_group_to_source()
+    ctx.paint_with_alpha(clamp(fade))
+    ctx.restore()
+
+
 class SceneCtx:
     """Everything resolved once per scene (assets, motion, words)."""
 
@@ -692,6 +786,18 @@ class SceneCtx:
         self.visemes = (assets.json("viseme_default", "03_expressions") or {}).get("visemes", {})
         self.trans = assets.json(sc.environment.transition_in_id, "09_transitions")
         self.words = tl["words"]
+        self.say = tl.get("say")
+        sp = getattr(sc, "speech", None)
+        self.say_expr = assets.json(sp.expression_id, "03_expressions") if (sp and sp.expression_id) else None
+        # with a distinct stickman voice the narrator is a voice-over: he only lip-syncs his own lines
+        self.lipsync_narration = not any(getattr(x, "speech", None) for x in pkg.scenes)
+        # the bubble carries his words, so the bottom captions step aside while he talks
+        self.cap_hidden: Optional[Tuple[float, float]] = None
+        if self.say:
+            a, b = self.say["start"] - 0.05, self.say["end"] + 0.6
+            if self.words and self.words[0]["start"] > self.say["start"]:  # narration follows his line
+                b = min(b, self.words[0]["start"] - 0.05)
+            self.cap_hidden = (a, b)
 
 
 def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, face_right: bool) -> None:
@@ -742,20 +848,34 @@ def draw_scene(ctx, s: SceneCtx, W: int, H: int, t: float) -> None:
         ctx.translate(-W / 2, -H / 2)
         ax, ay = draw_background(ctx, s.assets, s.sc.environment.scene_id, W, H, theme, ms["camera.x"])
         face_right = ax < W * 0.55
-        draw_visual_aid(ctx, s, W, H, t, face_right)
+        presence = say_presence(s.say, t)
+        if presence > 0.01:  # the prop/card steps back while the stickman talks, so the bubble reads cleanly
+            ctx.push_group()
+            draw_visual_aid(ctx, s, W, H, t, face_right)
+            ctx.pop_group_to_source()
+            ctx.paint_with_alpha(1.0 - 0.85 * presence)
+        else:
+            draw_visual_aid(ctx, s, W, H, t, face_right)
         U = 0.44 * H
-        mouth = viseme_at(s.words, t, s.visemes) if s.visemes else s.expr.get("mouth_rest", "flat")
-        if not s.words or t > s.tl["speech_sec"]:
-            mouth = s.expr.get("mouth_rest", "flat")
-        breath = 1.0 + 0.012 * math.sin(t * 2.6)
-        pts = draw_character(ctx, s.char, s.pose, s.expr, mouth, theme, U,
+        rest = s.expr.get("mouth_rest", "flat")
+        speaking = bool(s.say) and s.say["start"] - 0.03 <= t <= s.say["end"] + 0.05
+        if speaking and s.visemes:
+            mouth = viseme_at(s.say["words"], t, s.visemes)
+        elif s.lipsync_narration and s.visemes and s.words and t <= s.tl["speech_sec"]:
+            mouth = viseme_at(s.words, t, s.visemes)
+        else:
+            mouth = rest
+        breath = 1.0 + 0.012 * math.sin(t * 2.6) + (0.02 * math.sin(t * 9.0) if speaking else 0.0)
+        pts = draw_character(ctx, s.char, s.pose, (s.say_expr if (speaking and s.say_expr) else s.expr), mouth, theme, U,
                              (ax + ms["character.x"] * W, ay + ms["character.y"] * H),
                              ms["torso.scale_y"] * breath, t)
         draw_overlay(ctx, s.assets, s.sc.visual_aid.overlay_id, W, H, theme, t, pts["head"], pts["_head_r"])  # type: ignore[arg-type]
+        if s.say:
+            draw_speech_bubble(ctx, s.say, t, pts["head"], pts["_head_r"], W, H, theme)  # type: ignore[arg-type]
         ctx.restore()
 
     draw_with_transition(ctx, s.trans, t, W, H, content)
-    if s.caption:
+    if s.caption and not (s.cap_hidden and s.cap_hidden[0] <= t <= s.cap_hidden[1]):
         draw_captions(ctx, s.caption, s.words, t, W, H, theme)
 
 
