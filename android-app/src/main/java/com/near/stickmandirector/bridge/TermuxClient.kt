@@ -28,12 +28,33 @@ class TermuxClient(private val ctx: Context) {
         .header("X-Stickman-Token", store.daemonToken)
 
     // ------------------------------------------------------------------ HTTP
-    fun health(): HealthReport = try {
-        http.newCall(req("/health").build()).execute().use { r ->
-            if (r.isSuccessful) HealthReport.fromJson(JSONObject(r.body!!.string()))
-            else HealthReport(false, error = "HTTP ${r.code}")
-        }
-    } catch (t: Throwable) { HealthReport(false, error = t.message ?: t.javaClass.simpleName) }
+    fun health(): HealthReport {
+        val h = try {
+            http.newCall(req("/health").build()).execute().use { r ->
+                if (r.isSuccessful) HealthReport.fromJson(JSONObject(r.body!!.string()))
+                else HealthReport(false, error = "HTTP ${r.code}")
+            }
+        } catch (t: Throwable) { HealthReport(false, error = t.message ?: t.javaClass.simpleName) }
+        resyncIfLost(h)
+        return h
+    }
+
+    /**
+     * The daemon keeps keys and the Claude session in memory only, so a restart wipes them. If a health check shows
+     * something this app holds is missing there, push it again (async, at most every 15 s).
+     */
+    private fun resyncIfLost(h: HealthReport) {
+        if (!h.reachable || !h.authOk || !h.authRequired) return
+        val held = h.keysHeld ?: return                      // old daemon: cannot tell
+        val sessionHeld = h.claudeSessionHeld ?: return
+        val haveSession = store.loadCred("claude")?.let { it.mode == AuthMode.SESSION && it.cookies.isNotEmpty() } == true
+        val missingKeys = ProvidersStore.runtimeKeys(ctx).keys.any { it !in held }
+        if (!(missingKeys || (haveSession && !sessionHeld))) return
+        val now = System.currentTimeMillis()
+        if (now - ResyncState.last < 15_000) return
+        ResyncState.last = now
+        com.near.stickmandirector.auth.Bg.io { pushKeysBlocking() }
+    }
 
     /** Returns the response body; throws IllegalStateException with a readable message on failure. */
     fun get(path: String): String = http.newCall(req(path).get().build()).execute().use { body(it) }
@@ -119,3 +140,6 @@ class TermuxClient(private val ctx: Context) {
         return h
     }
 }
+
+/** Throttle shared by every TermuxClient instance (they are created per call). */
+private object ResyncState { @Volatile var last = 0L }

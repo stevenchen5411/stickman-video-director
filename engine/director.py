@@ -313,10 +313,11 @@ def direct(video_id: str, source: Optional[Dict[str, Any]] = None, offline: bool
         for attempt in range(2):
             try:
                 plan, provider = plan_with_llm(fx, index, source["niche"], warning)
-            except Exception as e:  # noqa: BLE001 - no key / rate limit / bad JSON -> offline draft
-                log.warning("AI planning unavailable (%s); building offline draft", str(e)[:160])
-                plan = None
-                break
+            except Exception as e:  # noqa: BLE001 - no key / rate limit / bad JSON
+                # A template script is not a usable video: fail loudly instead of queueing a junk package.
+                # (Offline mode, chosen explicitly by the user, still builds the template draft below.)
+                log.warning("AI planning unavailable (%s)", str(e)[:160])
+                raise RuntimeError(f"AI unavailable: {str(e)[:100]}. Reopen the app to re-sync Claude, or use Offline mode.") from e
             worst = max((longest_shared_run(s.get("text", ""), transcript_text) for s in plan["scenes"]), default=0)
             if worst <= MAX_SHARED_RUN:
                 break

@@ -11,8 +11,8 @@ android {
         applicationId = "com.near.stickmandirector"
         minSdk = 29
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.3.7"
+        versionCode = 9
+        versionName = "0.3.8"
     }
 
     signingConfigs {

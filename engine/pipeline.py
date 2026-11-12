@@ -61,6 +61,11 @@ def run_auto(queries: List[str], channels: List[str], niche: str, max_packages: 
     import scout
 
     common.ensure_dirs()
+    if not offline:
+        import llm
+        if not llm.available():
+            raise RuntimeError("No AI provider is connected to the engine yet. Reopen the app (it re-sends your Claude "
+                               "session and keys), then run again, or tick Offline mode.")
     say(f"scouting niche '{niche}' (>= {min_multiplier}x outliers)")
     outliers = scout.scout(queries, channels, niche, min_multiplier)
     say(f"{len(outliers)} outlier videos found")

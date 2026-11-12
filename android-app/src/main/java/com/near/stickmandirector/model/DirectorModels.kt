@@ -138,6 +138,9 @@ data class HealthReport(
     /** provider -> ok | cooldown | needs_refresh | no_credentials (from the engine's failover state). */
     val aiStatus: Map<String, String> = emptyMap(),
     val claudeBridgeUp: Boolean = false,
+    /** What the daemon currently holds in memory (it forgets everything when it restarts). Null = old daemon, unknown. */
+    val claudeSessionHeld: Boolean? = null,
+    val keysHeld: List<String>? = null,
 ) {
     val allFlagsOk: Boolean get() = flags.isNotEmpty() && flags.values.all { it }
 
@@ -151,7 +154,9 @@ data class HealthReport(
             o.optJSONObject("ai_status")?.let { j -> j.keys().forEach { k -> st[k] = j.optJSONObject(k)?.optString("state") ?: "" } }
             return HealthReport(true, o.optString("status", "ok"), f, ai,
                 auth?.optBoolean("required") ?: false, auth?.optBoolean("ok", true) ?: true,
-                null, st, o.optBoolean("claude_bridge", false))
+                null, st, o.optBoolean("claude_bridge", false),
+                o.optJSONObject("credentials")?.optBoolean("claude_session"),
+                o.optJSONObject("credentials")?.optJSONArray("keys")?.let { a -> (0 until a.length()).map { a.getString(it) } })
         }
     }
 }

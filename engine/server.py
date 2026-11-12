@@ -145,7 +145,9 @@ def health(request: Request) -> Dict[str, Any]:
     return {"status": "ok" if all(flags.values()) else "degraded", "mode": mode, "version": VERSION, "flags": flags,
             "optional": extra, "ai_providers": llm.available(), "home": str(common.home()),
             "auth": {"required": bool(_token()), "ok": _token_ok(request)},
-            "ai_status": llm.status(), "claude_bridge": claude_web.bridge_up(0.4)}
+            "ai_status": llm.status(), "claude_bridge": claude_web.bridge_up(0.4),
+            # the daemon holds secrets in memory only; the app re-sends them whenever this shows they are missing
+            "credentials": {"claude_session": claude_web.has_session(), "keys": sorted(llm.RUNTIME_KEYS)}}
 
 
 class KeysRequest(BaseModel):
