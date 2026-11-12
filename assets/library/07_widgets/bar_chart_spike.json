@@ -1,0 +1,29 @@
+{
+  "id": "bar_chart_spike",
+  "format": "widget/v1",
+  "type": "bar_chart",
+  "data": {
+    "labels": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "values": [
+      3,
+      4,
+      3,
+      9,
+      4
+    ]
+  },
+  "highlight_index": 3,
+  "animate": "grow_stagger",
+  "stagger_ms": 90,
+  "style": {
+    "bar_color": "theme.accent",
+    "highlight_color": "theme.danger",
+    "show_values": true
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "angry_squint",
+  "format": "expression/v1",
+  "brows": {
+    "l_angle": 25,
+    "r_angle": -25,
+    "raise": 0.0
+  },
+  "eyes": {
+    "open": 0.45,
+    "pupil_scale": 1.0,
+    "look": [
+      0,
+      0
+    ]
+  },
+  "mouth_rest": "grit"
+}

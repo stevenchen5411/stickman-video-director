@@ -1,0 +1,24 @@
+{
+  "id": "camera_punch_in",
+  "format": "motion/v1",
+  "kind": "camera",
+  "duration_sec": 0.35,
+  "loop": false,
+  "tracks": [
+    {
+      "target": "camera.scale",
+      "keys": [
+        [
+          0,
+          1.0,
+          "linear"
+        ],
+        [
+          0.35,
+          1.22,
+          "expo_out"
+        ]
+      ]
+    }
+  ]
+}

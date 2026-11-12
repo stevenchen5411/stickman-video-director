@@ -1,0 +1,33 @@
+{
+  "id": "viseme_default",
+  "format": "viseme_set/v1",
+  "visemes": {
+    "rest": {
+      "open": 0.0,
+      "width": 0.5
+    },
+    "A": {
+      "open": 0.9,
+      "width": 0.7
+    },
+    "E": {
+      "open": 0.5,
+      "width": 1.0
+    },
+    "O": {
+      "open": 0.7,
+      "width": 0.35
+    },
+    "M": {
+      "open": 0.0,
+      "width": 0.6
+    }
+  },
+  "amplitude_thresholds": {
+    "rest": 0.02,
+    "E": 0.18,
+    "O": 0.35,
+    "A": 0.55
+  },
+  "notes": "Pick by word-level phoneme class when alignment exists, else by RMS amplitude bands."
+}

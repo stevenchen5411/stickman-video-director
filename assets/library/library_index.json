@@ -1,0 +1,844 @@
+{
+  "schema_version": "1.0",
+  "updated_at_utc": "2026-11-12T15:35:18Z",
+  "assets": [
+    {
+      "id": "kael_hoodie",
+      "category": "01_characters",
+      "scope": "global",
+      "niche_tags": [
+        "explainer",
+        "psychology",
+        "tech"
+      ],
+      "file_path": "01_characters/kael_hoodie.json",
+      "usage_count": 0,
+      "perceptual_hash": "83e1f04fe0f8",
+      "thumb_path": ".thumbs/kael_hoodie.png",
+      "default_voice_id": "Charon"
+    },
+    {
+      "id": "luna_sage",
+      "category": "01_characters",
+      "scope": "global",
+      "niche_tags": [
+        "stoicism",
+        "psychology",
+        "storytelling"
+      ],
+      "file_path": "01_characters/luna_sage.json",
+      "usage_count": 0,
+      "perceptual_hash": "d9a82f8e050a",
+      "thumb_path": ".thumbs/luna_sage.png",
+      "default_voice_id": "Aoede"
+    },
+    {
+      "id": "nova_scientist",
+      "category": "01_characters",
+      "scope": "global",
+      "niche_tags": [
+        "science",
+        "explainer",
+        "health"
+      ],
+      "file_path": "01_characters/nova_scientist.json",
+      "usage_count": 0,
+      "perceptual_hash": "923eaa2c5acb",
+      "thumb_path": ".thumbs/nova_scientist.png",
+      "default_voice_id": "Kore"
+    },
+    {
+      "id": "pip_sidekick",
+      "category": "01_characters",
+      "scope": "global",
+      "niche_tags": [
+        "comedy",
+        "gaming",
+        "explainer"
+      ],
+      "file_path": "01_characters/pip_sidekick.json",
+      "usage_count": 0,
+      "perceptual_hash": "0c862ce8d251",
+      "thumb_path": ".thumbs/pip_sidekick.png",
+      "default_voice_id": "Puck"
+    },
+    {
+      "id": "rex_coach",
+      "category": "01_characters",
+      "scope": "global",
+      "niche_tags": [
+        "fitness",
+        "business",
+        "stoicism"
+      ],
+      "file_path": "01_characters/rex_coach.json",
+      "usage_count": 0,
+      "perceptual_hash": "24699dc0246e",
+      "thumb_path": ".thumbs/rex_coach.png",
+      "default_voice_id": "Fenrir"
+    },
+    {
+      "id": "arms_crossed",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "confident"
+      ],
+      "file_path": "02_poses/arms_crossed.json",
+      "usage_count": 0,
+      "perceptual_hash": "a6a51da13485",
+      "thumb_path": ".thumbs/arms_crossed.png"
+    },
+    {
+      "id": "holding_head",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "stress",
+        "shock"
+      ],
+      "file_path": "02_poses/holding_head.json",
+      "usage_count": 0,
+      "perceptual_hash": "f26d61396789",
+      "thumb_path": ".thumbs/holding_head.png"
+    },
+    {
+      "id": "holding_prop_right",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "props"
+      ],
+      "file_path": "02_poses/holding_prop_right.json",
+      "usage_count": 0,
+      "perceptual_hash": "ddb42d744b5f",
+      "thumb_path": ".thumbs/holding_prop_right.png"
+    },
+    {
+      "id": "pointing_right",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "explain"
+      ],
+      "file_path": "02_poses/pointing_right.json",
+      "usage_count": 0,
+      "perceptual_hash": "5dd11aa2e491",
+      "thumb_path": ".thumbs/pointing_right.png"
+    },
+    {
+      "id": "running",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "action"
+      ],
+      "file_path": "02_poses/running.json",
+      "usage_count": 0,
+      "perceptual_hash": "fbb7eaee0912",
+      "thumb_path": ".thumbs/running.png"
+    },
+    {
+      "id": "shrug",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "unsure",
+        "comic"
+      ],
+      "file_path": "02_poses/shrug.json",
+      "usage_count": 0,
+      "perceptual_hash": "92caf1102ccf",
+      "thumb_path": ".thumbs/shrug.png"
+    },
+    {
+      "id": "standing_neutral",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "idle"
+      ],
+      "file_path": "02_poses/standing_neutral.json",
+      "usage_count": 0,
+      "perceptual_hash": "0c0ee17d4392",
+      "thumb_path": ".thumbs/standing_neutral.png"
+    },
+    {
+      "id": "angry_squint",
+      "category": "03_expressions",
+      "scope": "global",
+      "niche_tags": [
+        "anger"
+      ],
+      "file_path": "03_expressions/angry_squint.json",
+      "usage_count": 0,
+      "perceptual_hash": "8d6b16e8fffb",
+      "thumb_path": ".thumbs/angry_squint.png"
+    },
+    {
+      "id": "neutral",
+      "category": "03_expressions",
+      "scope": "global",
+      "niche_tags": [
+        "idle"
+      ],
+      "file_path": "03_expressions/neutral.json",
+      "usage_count": 0,
+      "perceptual_hash": "11dc0528ddb9",
+      "thumb_path": ".thumbs/neutral.png"
+    },
+    {
+      "id": "smirk_confident",
+      "category": "03_expressions",
+      "scope": "global",
+      "niche_tags": [
+        "confident"
+      ],
+      "file_path": "03_expressions/smirk_confident.json",
+      "usage_count": 0,
+      "perceptual_hash": "4ec2dc98daef",
+      "thumb_path": ".thumbs/smirk_confident.png"
+    },
+    {
+      "id": "viseme_default",
+      "category": "03_expressions",
+      "scope": "global",
+      "niche_tags": [
+        "mouth_sync"
+      ],
+      "file_path": "03_expressions/viseme_default.json",
+      "usage_count": 0,
+      "perceptual_hash": "2ba0d19dfbb8",
+      "thumb_path": ".thumbs/viseme_default.png"
+    },
+    {
+      "id": "wide_eyed_shock",
+      "category": "03_expressions",
+      "scope": "global",
+      "niche_tags": [
+        "shock",
+        "surprise"
+      ],
+      "file_path": "03_expressions/wide_eyed_shock.json",
+      "usage_count": 0,
+      "perceptual_hash": "d2b904c5006e",
+      "thumb_path": ".thumbs/wide_eyed_shock.png"
+    },
+    {
+      "id": "worried_brow",
+      "category": "03_expressions",
+      "scope": "global",
+      "niche_tags": [
+        "worry",
+        "stress"
+      ],
+      "file_path": "03_expressions/worried_brow.json",
+      "usage_count": 0,
+      "perceptual_hash": "9330d56117db",
+      "thumb_path": ".thumbs/worried_brow.png"
+    },
+    {
+      "id": "bounce_loop",
+      "category": "04_motions",
+      "scope": "global",
+      "niche_tags": [
+        "energy"
+      ],
+      "file_path": "04_motions/bounce_loop.json",
+      "usage_count": 0,
+      "perceptual_hash": "fc1af9535a66",
+      "thumb_path": ".thumbs/bounce_loop.png"
+    },
+    {
+      "id": "camera_pan_right",
+      "category": "04_motions",
+      "scope": "global",
+      "niche_tags": [
+        "travel"
+      ],
+      "file_path": "04_motions/camera_pan_right.json",
+      "usage_count": 0,
+      "perceptual_hash": "9f48572252c5",
+      "thumb_path": ".thumbs/camera_pan_right.png"
+    },
+    {
+      "id": "camera_punch_in",
+      "category": "04_motions",
+      "scope": "global",
+      "niche_tags": [
+        "emphasis",
+        "hook"
+      ],
+      "file_path": "04_motions/camera_punch_in.json",
+      "usage_count": 0,
+      "perceptual_hash": "96bcfec67cdd",
+      "thumb_path": ".thumbs/camera_punch_in.png"
+    },
+    {
+      "id": "idle_breathing",
+      "category": "04_motions",
+      "scope": "global",
+      "niche_tags": [
+        "idle"
+      ],
+      "file_path": "04_motions/idle_breathing.json",
+      "usage_count": 0,
+      "perceptual_hash": "817fa9990055",
+      "thumb_path": ".thumbs/idle_breathing.png"
+    },
+    {
+      "id": "shake_nervous",
+      "category": "04_motions",
+      "scope": "global",
+      "niche_tags": [
+        "stress"
+      ],
+      "file_path": "04_motions/shake_nervous.json",
+      "usage_count": 0,
+      "perceptual_hash": "8a386a8e617e",
+      "thumb_path": ".thumbs/shake_nervous.png"
+    },
+    {
+      "id": "spring_pop_in",
+      "category": "04_motions",
+      "scope": "global",
+      "niche_tags": [
+        "pop"
+      ],
+      "file_path": "04_motions/spring_pop_in.json",
+      "usage_count": 0,
+      "perceptual_hash": "0c51f2129ec9",
+      "thumb_path": ".thumbs/spring_pop_in.png"
+    },
+    {
+      "id": "bedroom_morning",
+      "category": "05_scenes",
+      "scope": "specific",
+      "niche_tags": [
+        "sleep",
+        "habits",
+        "psychology"
+      ],
+      "file_path": "05_scenes/bedroom_morning.json",
+      "usage_count": 0,
+      "perceptual_hash": "d1670eaa24e7",
+      "thumb_path": ".thumbs/bedroom_morning.png"
+    },
+    {
+      "id": "city_night_skyline",
+      "category": "05_scenes",
+      "scope": "global",
+      "niche_tags": [
+        "business",
+        "general",
+        "storytelling"
+      ],
+      "file_path": "05_scenes/city_night_skyline.svg",
+      "usage_count": 0,
+      "perceptual_hash": "561f29e8b95c",
+      "thumb_path": ".thumbs/city_night_skyline.png"
+    },
+    {
+      "id": "mountain_cliff_storm",
+      "category": "05_scenes",
+      "scope": "specific",
+      "niche_tags": [
+        "stoicism",
+        "resilience",
+        "struggle"
+      ],
+      "file_path": "05_scenes/mountain_cliff_storm.svg",
+      "usage_count": 0,
+      "perceptual_hash": "6e20e54f9759",
+      "thumb_path": ".thumbs/mountain_cliff_storm.png"
+    },
+    {
+      "id": "studio_gradient",
+      "category": "05_scenes",
+      "scope": "global",
+      "niche_tags": [
+        "explainer",
+        "tech",
+        "general"
+      ],
+      "file_path": "05_scenes/studio_gradient.svg",
+      "usage_count": 0,
+      "perceptual_hash": "9569ced3d52c",
+      "thumb_path": ".thumbs/studio_gradient.png"
+    },
+    {
+      "id": "brain_simple",
+      "category": "06_props",
+      "scope": "global",
+      "niche_tags": [
+        "psychology",
+        "science",
+        "explainer"
+      ],
+      "file_path": "06_props/brain_simple.svg",
+      "usage_count": 0,
+      "perceptual_hash": "b7eee654f150",
+      "thumb_path": ".thumbs/brain_simple.png"
+    },
+    {
+      "id": "coin_stack",
+      "category": "06_props",
+      "scope": "global",
+      "niche_tags": [
+        "business",
+        "finance",
+        "general"
+      ],
+      "file_path": "06_props/coin_stack.svg",
+      "usage_count": 0,
+      "perceptual_hash": "11e3ba7f62e6",
+      "thumb_path": ".thumbs/coin_stack.png"
+    },
+    {
+      "id": "lightbulb_idea",
+      "category": "06_props",
+      "scope": "global",
+      "niche_tags": [
+        "explainer",
+        "idea",
+        "general"
+      ],
+      "file_path": "06_props/lightbulb_idea.svg",
+      "usage_count": 0,
+      "perceptual_hash": "b3a4a6765a10",
+      "thumb_path": ".thumbs/lightbulb_idea.png"
+    },
+    {
+      "id": "snooze_alarm_clock",
+      "category": "06_props",
+      "scope": "specific",
+      "niche_tags": [
+        "sleep",
+        "habits",
+        "morning"
+      ],
+      "file_path": "06_props/snooze_alarm_clock.svg",
+      "usage_count": 0,
+      "perceptual_hash": "36a08fb3787b",
+      "thumb_path": ".thumbs/snooze_alarm_clock.png"
+    },
+    {
+      "id": "bar_chart_spike",
+      "category": "07_widgets",
+      "scope": "global",
+      "niche_tags": [
+        "data",
+        "explainer",
+        "general"
+      ],
+      "file_path": "07_widgets/bar_chart_spike.json",
+      "usage_count": 0,
+      "perceptual_hash": "f54c226753f6",
+      "thumb_path": ".thumbs/bar_chart_spike.png"
+    },
+    {
+      "id": "comparison_card_two_up",
+      "category": "07_widgets",
+      "scope": "global",
+      "niche_tags": [
+        "comparison",
+        "general"
+      ],
+      "file_path": "07_widgets/comparison_card_two_up.json",
+      "usage_count": 0,
+      "perceptual_hash": "68c6a9d182b5",
+      "thumb_path": ".thumbs/comparison_card_two_up.png"
+    },
+    {
+      "id": "funnel_three_stage",
+      "category": "07_widgets",
+      "scope": "global",
+      "niche_tags": [
+        "business",
+        "marketing"
+      ],
+      "file_path": "07_widgets/funnel_three_stage.json",
+      "usage_count": 0,
+      "perceptual_hash": "bd182e21ef7c",
+      "thumb_path": ".thumbs/funnel_three_stage.png"
+    },
+    {
+      "id": "exclamation_burst",
+      "category": "08_overlays",
+      "scope": "global",
+      "niche_tags": [
+        "shock",
+        "emphasis"
+      ],
+      "file_path": "08_overlays/exclamation_burst.svg",
+      "usage_count": 0,
+      "perceptual_hash": "13c97dadcea4",
+      "thumb_path": ".thumbs/exclamation_burst.png"
+    },
+    {
+      "id": "question_marks_confused",
+      "category": "08_overlays",
+      "scope": "global",
+      "niche_tags": [
+        "confusion",
+        "comic"
+      ],
+      "file_path": "08_overlays/question_marks_confused.json",
+      "usage_count": 0,
+      "perceptual_hash": "737a79862fe0",
+      "thumb_path": ".thumbs/question_marks_confused.png"
+    },
+    {
+      "id": "speed_lines_radial",
+      "category": "08_overlays",
+      "scope": "global",
+      "niche_tags": [
+        "action",
+        "emphasis"
+      ],
+      "file_path": "08_overlays/speed_lines_radial.svg",
+      "usage_count": 0,
+      "perceptual_hash": "775db5863e07",
+      "thumb_path": ".thumbs/speed_lines_radial.png"
+    },
+    {
+      "id": "sweat_drops_nervous",
+      "category": "08_overlays",
+      "scope": "global",
+      "niche_tags": [
+        "stress",
+        "comic"
+      ],
+      "file_path": "08_overlays/sweat_drops_nervous.json",
+      "usage_count": 0,
+      "perceptual_hash": "b83b44ce86bf",
+      "thumb_path": ".thumbs/sweat_drops_nervous.png"
+    },
+    {
+      "id": "cross_fade_soft",
+      "category": "09_transitions",
+      "scope": "global",
+      "niche_tags": [
+        "calm"
+      ],
+      "file_path": "09_transitions/cross_fade_soft.json",
+      "usage_count": 0,
+      "perceptual_hash": "1cdd9128f55a",
+      "thumb_path": ".thumbs/cross_fade_soft.png"
+    },
+    {
+      "id": "whip_pan_left",
+      "category": "09_transitions",
+      "scope": "global",
+      "niche_tags": [
+        "fast",
+        "energy"
+      ],
+      "file_path": "09_transitions/whip_pan_left.json",
+      "usage_count": 0,
+      "perceptual_hash": "7c9049ff4bd7",
+      "thumb_path": ".thumbs/whip_pan_left.png"
+    },
+    {
+      "id": "wipe_diagonal",
+      "category": "09_transitions",
+      "scope": "global",
+      "niche_tags": [
+        "clean"
+      ],
+      "file_path": "09_transitions/wipe_diagonal.json",
+      "usage_count": 0,
+      "perceptual_hash": "c7450cb771d5",
+      "thumb_path": ".thumbs/wipe_diagonal.png"
+    },
+    {
+      "id": "zoom_punch",
+      "category": "09_transitions",
+      "scope": "global",
+      "niche_tags": [
+        "emphasis"
+      ],
+      "file_path": "09_transitions/zoom_punch.json",
+      "usage_count": 0,
+      "perceptual_hash": "9a0dfe63945d",
+      "thumb_path": ".thumbs/zoom_punch.png"
+    },
+    {
+      "id": "clean_white_bar",
+      "category": "10_caption_styles",
+      "scope": "global",
+      "niche_tags": [
+        "calm",
+        "documentary"
+      ],
+      "file_path": "10_caption_styles/clean_white_bar.json",
+      "usage_count": 0,
+      "perceptual_hash": "5b76832a0929",
+      "thumb_path": ".thumbs/clean_white_bar.png"
+    },
+    {
+      "id": "hormozi_pop_yellow",
+      "category": "10_caption_styles",
+      "scope": "global",
+      "niche_tags": [
+        "shorts",
+        "viral"
+      ],
+      "file_path": "10_caption_styles/hormozi_pop_yellow.json",
+      "usage_count": 0,
+      "perceptual_hash": "c6aa98cd2b77",
+      "thumb_path": ".thumbs/hormozi_pop_yellow.png"
+    },
+    {
+      "id": "dark_slate_neon",
+      "category": "11_themes",
+      "scope": "global",
+      "niche_tags": [
+        "tech",
+        "psychology",
+        "general"
+      ],
+      "file_path": "11_themes/dark_slate_neon.json",
+      "usage_count": 0,
+      "perceptual_hash": "afa460892141",
+      "thumb_path": ".thumbs/dark_slate_neon.png"
+    },
+    {
+      "id": "paper_light",
+      "category": "11_themes",
+      "scope": "global",
+      "niche_tags": [
+        "education",
+        "business"
+      ],
+      "file_path": "11_themes/paper_light.json",
+      "usage_count": 0,
+      "perceptual_hash": "69ecec86c689",
+      "thumb_path": ".thumbs/paper_light.png"
+    },
+    {
+      "id": "kael_calm_charon",
+      "category": "12_voices",
+      "scope": "global",
+      "niche_tags": [
+        "narrator",
+        "authority"
+      ],
+      "file_path": "12_voices/kael_calm_charon.json",
+      "usage_count": 0,
+      "perceptual_hash": "db90cd22e074",
+      "gemini_voice_name": "Charon",
+      "preview_audio_path": "12_voices/kael_calm_charon_preview.wav"
+    },
+    {
+      "id": "luna_warm_aoede",
+      "category": "12_voices",
+      "scope": "global",
+      "niche_tags": [
+        "warm",
+        "storytelling"
+      ],
+      "file_path": "12_voices/luna_warm_aoede.json",
+      "usage_count": 0,
+      "perceptual_hash": "e210f0a56d32",
+      "gemini_voice_name": "Aoede",
+      "preview_audio_path": "12_voices/luna_warm_aoede_preview.wav"
+    },
+    {
+      "id": "nova_bright_kore",
+      "category": "12_voices",
+      "scope": "global",
+      "niche_tags": [
+        "upbeat",
+        "science"
+      ],
+      "file_path": "12_voices/nova_bright_kore.json",
+      "usage_count": 0,
+      "perceptual_hash": "8b1065873c4a",
+      "gemini_voice_name": "Kore",
+      "preview_audio_path": "12_voices/nova_bright_kore_preview.wav"
+    },
+    {
+      "id": "pip_quirky_puck",
+      "category": "12_voices",
+      "scope": "global",
+      "niche_tags": [
+        "playful",
+        "comic"
+      ],
+      "file_path": "12_voices/pip_quirky_puck.json",
+      "usage_count": 0,
+      "perceptual_hash": "ca4640aa7c20",
+      "gemini_voice_name": "Puck",
+      "preview_audio_path": "12_voices/pip_quirky_puck_preview.wav"
+    },
+    {
+      "id": "rex_bold_fenrir",
+      "category": "12_voices",
+      "scope": "global",
+      "niche_tags": [
+        "bold",
+        "motivational"
+      ],
+      "file_path": "12_voices/rex_bold_fenrir.json",
+      "usage_count": 0,
+      "perceptual_hash": "bcecfd34cc58",
+      "gemini_voice_name": "Fenrir",
+      "preview_audio_path": "12_voices/rex_bold_fenrir_preview.wav"
+    },
+    {
+      "id": "calm_ambient_pad",
+      "category": "13_bgm",
+      "scope": "global",
+      "niche_tags": [
+        "stoicism",
+        "documentary",
+        "storytelling"
+      ],
+      "file_path": "13_bgm/calm_ambient_pad.ogg",
+      "usage_count": 0,
+      "perceptual_hash": "c51894895a87",
+      "meta": {
+        "bpm": 60,
+        "mood": "calm",
+        "loop_sec": 16.0,
+        "loop": true
+      }
+    },
+    {
+      "id": "tense_clockwork_pulse",
+      "category": "13_bgm",
+      "scope": "global",
+      "niche_tags": [
+        "thriller",
+        "psychology",
+        "stress"
+      ],
+      "file_path": "13_bgm/tense_clockwork_pulse.ogg",
+      "usage_count": 0,
+      "perceptual_hash": "78c159c7f0aa",
+      "meta": {
+        "bpm": 120,
+        "mood": "tense",
+        "loop_sec": 16.0,
+        "loop": true
+      }
+    },
+    {
+      "id": "upbeat_lofi_groove",
+      "category": "13_bgm",
+      "scope": "global",
+      "niche_tags": [
+        "explainer",
+        "business",
+        "tech"
+      ],
+      "file_path": "13_bgm/upbeat_lofi_groove.ogg",
+      "usage_count": 0,
+      "perceptual_hash": "4530e892362d",
+      "meta": {
+        "bpm": 90,
+        "mood": "upbeat",
+        "loop_sec": 16.0,
+        "loop": true
+      }
+    },
+    {
+      "id": "clock_tick_single",
+      "category": "14_sfx",
+      "scope": "global",
+      "niche_tags": [
+        "clock",
+        "time",
+        "tension"
+      ],
+      "file_path": "14_sfx/clock_tick_single.wav",
+      "usage_count": 0,
+      "perceptual_hash": "0113de2d11ca",
+      "meta": {
+        "duration_sec": 0.12,
+        "sample_rate": 44100
+      }
+    },
+    {
+      "id": "ding_success",
+      "category": "14_sfx",
+      "scope": "global",
+      "niche_tags": [
+        "success",
+        "reward"
+      ],
+      "file_path": "14_sfx/ding_success.wav",
+      "usage_count": 0,
+      "perceptual_hash": "6ce942a8259a",
+      "meta": {
+        "duration_sec": 1.1,
+        "sample_rate": 44100
+      }
+    },
+    {
+      "id": "glitch_blip",
+      "category": "14_sfx",
+      "scope": "global",
+      "niche_tags": [
+        "tech",
+        "glitch"
+      ],
+      "file_path": "14_sfx/glitch_blip.wav",
+      "usage_count": 0,
+      "perceptual_hash": "e2f4e74b1ed8",
+      "meta": {
+        "duration_sec": 0.22,
+        "sample_rate": 44100
+      }
+    },
+    {
+      "id": "pop_bubble",
+      "category": "14_sfx",
+      "scope": "global",
+      "niche_tags": [
+        "pop",
+        "comic"
+      ],
+      "file_path": "14_sfx/pop_bubble.wav",
+      "usage_count": 0,
+      "perceptual_hash": "69acf91802b8",
+      "meta": {
+        "duration_sec": 0.16,
+        "sample_rate": 44100
+      }
+    },
+    {
+      "id": "thud_soft",
+      "category": "14_sfx",
+      "scope": "global",
+      "niche_tags": [
+        "impact",
+        "weight"
+      ],
+      "file_path": "14_sfx/thud_soft.wav",
+      "usage_count": 0,
+      "perceptual_hash": "a23a8224c96e",
+      "meta": {
+        "duration_sec": 0.45,
+        "sample_rate": 44100
+      }
+    },
+    {
+      "id": "whoosh_fast",
+      "category": "14_sfx",
+      "scope": "global",
+      "niche_tags": [
+        "transition",
+        "motion"
+      ],
+      "file_path": "14_sfx/whoosh_fast.wav",
+      "usage_count": 0,
+      "perceptual_hash": "ccb7a4551ab9",
+      "meta": {
+        "duration_sec": 0.6,
+        "sample_rate": 44100
+      }
+    }
+  ]
+}

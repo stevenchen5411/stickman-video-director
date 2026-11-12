@@ -1,0 +1,14 @@
+{
+  "id": "paper_light",
+  "format": "theme/v1",
+  "palette": {
+    "bg": "#f8fafc",
+    "surface": "#e2e8f0",
+    "line": "#0f172a",
+    "text": "#0f172a",
+    "accent": "#2563eb",
+    "accent2": "#db2777",
+    "highlight": "#f59e0b",
+    "danger": "#dc2626"
+  }
+}

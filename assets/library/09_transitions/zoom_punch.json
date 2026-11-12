@@ -1,0 +1,10 @@
+{
+  "id": "zoom_punch",
+  "format": "transition/v1",
+  "type": "zoom",
+  "from_scale": 1.0,
+  "to_scale": 1.6,
+  "duration_sec": 0.2,
+  "flash": true,
+  "easing": "expo_in"
+}

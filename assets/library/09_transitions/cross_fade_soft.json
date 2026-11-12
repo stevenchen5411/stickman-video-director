@@ -1,0 +1,7 @@
+{
+  "id": "cross_fade_soft",
+  "format": "transition/v1",
+  "type": "fade",
+  "duration_sec": 0.35,
+  "easing": "linear"
+}

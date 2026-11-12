@@ -1,0 +1,11 @@
+{
+  "id": "rex_bold_fenrir",
+  "format": "voice_persona/v1",
+  "type": "prebuilt",
+  "gemini_voice_name": "Fenrir",
+  "tts_model": "gemini-3.8-flash-tts",
+  "default_style": "Bold, intense, punchy; push on key words.",
+  "pace_multiplier": 1.0,
+  "preview_audio_path": "12_voices/rex_bold_fenrir_preview.wav",
+  "preview_is_placeholder": true
+}

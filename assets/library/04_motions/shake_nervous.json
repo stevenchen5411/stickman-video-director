@@ -1,0 +1,34 @@
+{
+  "id": "shake_nervous",
+  "format": "motion/v1",
+  "kind": "character",
+  "duration_sec": 0.5,
+  "loop": true,
+  "tracks": [
+    {
+      "target": "character.x",
+      "keys": [
+        [
+          0,
+          0,
+          "linear"
+        ],
+        [
+          0.06,
+          0.006,
+          "linear"
+        ],
+        [
+          0.12,
+          -0.006,
+          "linear"
+        ],
+        [
+          0.5,
+          0,
+          "linear"
+        ]
+      ]
+    }
+  ]
+}

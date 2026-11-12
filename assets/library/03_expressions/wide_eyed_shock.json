@@ -1,0 +1,18 @@
+{
+  "id": "wide_eyed_shock",
+  "format": "expression/v1",
+  "brows": {
+    "l_angle": -15,
+    "r_angle": 15,
+    "raise": 0.0
+  },
+  "eyes": {
+    "open": 1.0,
+    "pupil_scale": 0.45,
+    "look": [
+      0,
+      0
+    ]
+  },
+  "mouth_rest": "open_small"
+}

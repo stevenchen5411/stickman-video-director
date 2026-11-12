@@ -1,0 +1,11 @@
+{
+  "id": "nova_bright_kore",
+  "format": "voice_persona/v1",
+  "type": "prebuilt",
+  "gemini_voice_name": "Kore",
+  "tts_model": "gemini-3.8-flash-tts",
+  "default_style": "Bright, precise, curious; crisp consonants.",
+  "pace_multiplier": 1.0,
+  "preview_audio_path": "12_voices/nova_bright_kore_preview.wav",
+  "preview_is_placeholder": true
+}

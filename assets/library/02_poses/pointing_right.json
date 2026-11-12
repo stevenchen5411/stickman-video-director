@@ -1,0 +1,21 @@
+{
+  "id": "pointing_right",
+  "format": "pose/v1",
+  "angles_unit": "degrees_from_vertical",
+  "joints": {
+    "torso_lean": 3,
+    "neck": 0,
+    "l_shoulder": 10,
+    "l_elbow": 5,
+    "r_shoulder": -80,
+    "r_elbow": 0,
+    "l_hip": 4,
+    "l_knee": 0,
+    "r_hip": -4,
+    "r_knee": 0
+  },
+  "hand_anchors": {
+    "l": "free",
+    "r": "point"
+  }
+}

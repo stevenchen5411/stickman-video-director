@@ -1,0 +1,105 @@
+{
+  "package_id": "pkg_20261112_snooze01",
+  "status": "ready_to_generate",
+  "source_viral_video": {
+    "video_id": "dQw4w9WgXcQ",
+    "channel": "@BrainDecoded",
+    "outlier_multiplier": 5.2,
+    "niche": "psychology_habits",
+    "video_md_path": "/storage/emulated/0/StickmanDirector/cache/dQw4w9WgXcQ/VIDEO.md"
+  },
+  "render_config": {
+    "aspect_ratio": "9:16",
+    "theme_id": "dark_slate_neon",
+    "caption_style_id": "hormozi_pop_yellow",
+    "bgm_id": "tense_clockwork_pulse"
+  },
+  "viral_packaging": {
+    "title_variants": [
+      "Why Snoozing Your Alarm Ruins Your Morning",
+      "The 9-Minute Mistake Destroying Your Energy",
+      "Stop Hitting Snooze — Here Is What Happens Inside Your Brain"
+    ],
+    "cover_scene_id": "scene_02",
+    "cover_text_hook": "9 MIN = RUINED SLEEP"
+  },
+  "quality_audit": {
+    "estimated_duration_sec": 13.5,
+    "avg_beat_sec": 3.38,
+    "visual_activity_pct": 100,
+    "auto_repaired_scenes": ["scene_03"],
+    "passed": true
+  },
+  "scenes": [
+    {
+      "id": "scene_02",
+      "source_shot_ref": {
+        "shot_id": "shot_02",
+        "frame_path": "/storage/emulated/0/StickmanDirector/cache/dQw4w9WgXcQ/shots/shot_02.jpg",
+        "original_duration_sec": 3.5
+      },
+      "character": {
+        "character_id": "kael_hoodie",
+        "pose_id": "holding_head",
+        "expression_id": "wide_eyed_shock",
+        "motion_id": "camera_punch_in"
+      },
+      "environment": {"scene_id": "bedroom_morning", "transition_in_id": "whip_pan_left"},
+      "visual_aid": {
+        "type": "library_prop",
+        "prop_id": "snooze_alarm_clock",
+        "widget_id": "bar_chart_spike",
+        "overlay_id": "sweat_drops_nervous",
+        "fallback_visual_aid": {"type": "callout_card", "title": "07:00 -> 07:09 -> 07:18", "subtitle": "3x Fragmented Cycles"}
+      },
+      "narration": {
+        "character_id": "kael_hoodie",
+        "voice_profile_id": "kael_calm_charon",
+        "text": "Every nine-minute snooze... restarts a sleep cycle your brain cannot finish.",
+        "prosody": {
+          "acting_direction": "Start with urgent surprise on 'nine-minute', pause briefly after 'snooze', and drop pitch with serious finality on 'cannot finish'.",
+          "pace_multiplier": 1.08,
+          "emphasis_words": [
+            {"word": "nine-minute", "stress": "high_pitch_up", "trigger_sfx": "clock_tick_single"},
+            {"word": "cannot finish", "stress": "slow_weighty_drop", "trigger_sfx": "thud_soft"}
+          ],
+          "post_breath_pause_ms": 380,
+          "bgm_drop_on_climax": true
+        }
+      }
+    },
+    {
+      "id": "scene_03",
+      "source_shot_ref": {
+        "shot_id": "shot_03",
+        "frame_path": "/storage/emulated/0/StickmanDirector/cache/dQw4w9WgXcQ/shots/shot_03.jpg",
+        "original_duration_sec": 3.2
+      },
+      "character": {
+        "character_id": "kael_hoodie",
+        "pose_id": "pointing_right",
+        "expression_id": "worried_brow",
+        "motion_id": "shake_nervous"
+      },
+      "environment": {"scene_id": "studio_gradient", "transition_in_id": "zoom_punch"},
+      "visual_aid": {
+        "type": "widget",
+        "widget_id": "bar_chart_spike",
+        "overlay_id": "speed_lines_radial",
+        "fallback_visual_aid": {"type": "chart_bar", "title": "Energy by hour", "labels": ["7", "8", "9"], "values": [3, 4, 9]}
+      },
+      "narration": {
+        "character_id": "kael_hoodie",
+        "voice_profile_id": "kael_calm_charon",
+        "text": "So the fix is simple: one alarm, one decision, no negotiation.",
+        "prosody": {
+          "acting_direction": "Warm and decisive, slight smile on 'simple', flat firm landing on 'no negotiation'.",
+          "pace_multiplier": 1.0,
+          "emphasis_words": [{"word": "simple", "stress": "light_lift", "trigger_sfx": "pop_bubble"}],
+          "post_breath_pause_ms": 240,
+          "bgm_drop_on_climax": false
+        }
+      }
+    }
+  ]
+}

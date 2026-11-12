@@ -1,0 +1,21 @@
+{
+  "id": "sweat_drops_nervous",
+  "format": "overlay/v1",
+  "kind": "particles",
+  "anchor": "character.head",
+  "count": 3,
+  "particle": {
+    "shape": "teardrop",
+    "color": "#7dd3fc",
+    "size": 0.018
+  },
+  "motion": {
+    "direction": [
+      0.5,
+      -1.0
+    ],
+    "gravity": 0.9,
+    "lifetime_sec": 0.9,
+    "respawn": true
+  }
+}

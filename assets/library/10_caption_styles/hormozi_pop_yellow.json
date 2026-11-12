@@ -1,0 +1,19 @@
+{
+  "id": "hormozi_pop_yellow",
+  "format": "caption_style/v1",
+  "font": "DejaVu Sans Bold",
+  "size_ratio": 0.07,
+  "case": "upper",
+  "max_words_per_line": 3,
+  "position_y": 0.68,
+  "inactive_color": "#ffffff",
+  "active_word": {
+    "color": "#facc15",
+    "scale_pop": 1.18,
+    "pop_ms": 90
+  },
+  "stroke": {
+    "color": "#000000",
+    "width_ratio": 0.012
+  }
+}

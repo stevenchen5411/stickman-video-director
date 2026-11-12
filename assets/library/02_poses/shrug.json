@@ -1,0 +1,21 @@
+{
+  "id": "shrug",
+  "format": "pose/v1",
+  "angles_unit": "degrees_from_vertical",
+  "joints": {
+    "torso_lean": 0,
+    "neck": 4,
+    "l_shoulder": 40,
+    "l_elbow": 70,
+    "r_shoulder": -40,
+    "r_elbow": -70,
+    "l_hip": 4,
+    "l_knee": 0,
+    "r_hip": -4,
+    "r_knee": 0
+  },
+  "hand_anchors": {
+    "l": "free",
+    "r": "free"
+  }
+}

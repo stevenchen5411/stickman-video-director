@@ -1,0 +1,21 @@
+{
+  "id": "holding_head",
+  "format": "pose/v1",
+  "angles_unit": "degrees_from_vertical",
+  "joints": {
+    "torso_lean": 0,
+    "neck": -6,
+    "l_shoulder": 150,
+    "l_elbow": 120,
+    "r_shoulder": -150,
+    "r_elbow": -120,
+    "l_hip": 4,
+    "l_knee": 0,
+    "r_hip": -4,
+    "r_knee": 0
+  },
+  "hand_anchors": {
+    "l": "head_side",
+    "r": "head_side"
+  }
+}

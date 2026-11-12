@@ -1,0 +1,29 @@
+{
+  "id": "bounce_loop",
+  "format": "motion/v1",
+  "kind": "character",
+  "duration_sec": 0.8,
+  "loop": true,
+  "tracks": [
+    {
+      "target": "character.y",
+      "keys": [
+        [
+          0,
+          0,
+          "ease_out"
+        ],
+        [
+          0.4,
+          -0.03,
+          "ease_in"
+        ],
+        [
+          0.8,
+          0,
+          "ease_out"
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "id": "rex_coach",
+  "format": "stickman_rig/v1",
+  "units": "fraction_of_height",
+  "rig": {
+    "head_radius": 0.085,
+    "neck": 0.03,
+    "torso": 0.26,
+    "upper_arm": 0.14,
+    "forearm": 0.13,
+    "thigh": 0.18,
+    "shin": 0.18,
+    "line_width": 0.012,
+    "hand_radius": 0.016
+  },
+  "name": "Rex",
+  "personality_tags": [
+    "bold",
+    "intense",
+    "motivational"
+  ],
+  "default_voice_id": "Fenrir",
+  "default_voice_profile_id": "rex_bold_fenrir",
+  "colors": {
+    "line": "#f1f5f9",
+    "fill": "#0f172a",
+    "accent": "#f97316"
+  },
+  "accessory": {
+    "type": "tank",
+    "color": "#b91c1c",
+    "headband": true
+  }
+}

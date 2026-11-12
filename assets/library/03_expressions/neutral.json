@@ -1,0 +1,18 @@
+{
+  "id": "neutral",
+  "format": "expression/v1",
+  "brows": {
+    "l_angle": 0,
+    "r_angle": 0,
+    "raise": 0.0
+  },
+  "eyes": {
+    "open": 0.8,
+    "pupil_scale": 1.0,
+    "look": [
+      0,
+      0
+    ]
+  },
+  "mouth_rest": "flat"
+}

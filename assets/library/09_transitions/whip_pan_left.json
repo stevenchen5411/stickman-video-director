@@ -1,0 +1,9 @@
+{
+  "id": "whip_pan_left",
+  "format": "transition/v1",
+  "type": "whip_pan",
+  "direction": "left",
+  "duration_sec": 0.25,
+  "motion_blur": true,
+  "easing": "expo_out"
+}

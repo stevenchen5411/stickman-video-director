@@ -1,0 +1,25 @@
+{
+  "id": "comparison_card_two_up",
+  "format": "widget/v1",
+  "type": "comparison_card",
+  "data": {
+    "left": {
+      "title": "Before",
+      "bullets": [
+        "Tired",
+        "Foggy"
+      ]
+    },
+    "right": {
+      "title": "After",
+      "bullets": [
+        "Alert",
+        "Focused"
+      ]
+    }
+  },
+  "animate": "slide_in_split",
+  "style": {
+    "divider": "vs"
+  }
+}

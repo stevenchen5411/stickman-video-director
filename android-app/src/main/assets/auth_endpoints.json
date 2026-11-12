@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "updated_at_utc": "2026-11-12T00:00:00Z",
+  "_comment": "Layer-2 hot-patchable endpoints. AuthSelfHealer fetches this file from the repo's main branch (raw.githubusercontent.com) when RFC 8414 discovery (Layer 1) fails. Edit + push to repair a broken sign-in flow without shipping a new APK. client_id values are filled in by the owner.",
+  "providers": {
+    "claude": {
+      "display_name": "Claude",
+      "rfc8414_issuer": "https://claude.ai",
+      "metadata_urls": [
+        "https://claude.ai/.well-known/oauth-authorization-server",
+        "https://api.claude.ai/.well-known/oauth-authorization-server"
+      ],
+      "authorization_endpoint": "https://claude.ai/oauth/authorize",
+      "token_endpoint": "https://api.claude.ai/oauth/token",
+      "client_id": null,
+      "scopes": ["user:inference", "user:profile"],
+      "redirect_uri": "com.near.stickmandirector://oauth/claude",
+      "web_login_url": "https://claude.ai/login",
+      "api_base": "https://api.claude.ai",
+      "cookie_domains": ["claude.ai", ".claude.ai"],
+      "session_cookie_names": ["sessionKey"],
+      "cloudflare_cookie_names": ["cf_clearance"],
+      "api_key_console_url": "https://console.anthropic.com/settings/keys"
+    },
+    "gemini": {
+      "display_name": "Gemini",
+      "rfc8414_issuer": "https://accounts.google.com",
+      "metadata_urls": [
+        "https://accounts.google.com/.well-known/openid-configuration"
+      ],
+      "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+      "token_endpoint": "https://oauth2.googleapis.com/token",
+      "client_id": null,
+      "scopes": ["https://www.googleapis.com/auth/generative-language.retriever"],
+      "redirect_uri": "com.near.stickmandirector:/oauth/gemini",
+      "web_login_url": "https://accounts.google.com/ServiceLogin?continue=https://aistudio.google.com/",
+      "api_base": "https://generativelanguage.googleapis.com",
+      "cookie_domains": ["google.com", ".google.com"],
+      "session_cookie_names": ["SID", "__Secure-1PSID"],
+      "cloudflare_cookie_names": [],
+      "api_key_console_url": "https://aistudio.google.com/apikey"
+    },
+    "chatgpt": {
+      "display_name": "ChatGPT",
+      "rfc8414_issuer": "https://auth.openai.com",
+      "metadata_urls": [
+        "https://auth.openai.com/.well-known/oauth-authorization-server",
+        "https://auth.openai.com/.well-known/openid-configuration"
+      ],
+      "authorization_endpoint": "https://auth.openai.com/oauth/authorize",
+      "token_endpoint": "https://auth.openai.com/oauth/token",
+      "client_id": null,
+      "scopes": ["openid", "profile", "offline_access"],
+      "redirect_uri": "com.near.stickmandirector://oauth/chatgpt",
+      "web_login_url": "https://chatgpt.com/auth/login",
+      "api_base": "https://api.openai.com",
+      "cookie_domains": ["chatgpt.com", ".chatgpt.com", ".openai.com"],
+      "session_cookie_names": ["__Secure-next-auth.session-token"],
+      "cloudflare_cookie_names": ["cf_clearance", "__cf_bm"],
+      "api_key_console_url": "https://platform.openai.com/api-keys"
+    }
+  }
+}

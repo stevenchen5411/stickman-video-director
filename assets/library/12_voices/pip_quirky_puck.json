@@ -1,0 +1,11 @@
+{
+  "id": "pip_quirky_puck",
+  "format": "voice_persona/v1",
+  "type": "prebuilt",
+  "gemini_voice_name": "Puck",
+  "tts_model": "gemini-3.8-flash-tts",
+  "default_style": "Playful, quick, quirky; bouncy pitch.",
+  "pace_multiplier": 1.0,
+  "preview_audio_path": "12_voices/pip_quirky_puck_preview.wav",
+  "preview_is_placeholder": true
+}

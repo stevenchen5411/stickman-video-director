@@ -1,0 +1,80 @@
+name: Render HD (1080p60)
+
+on:
+  repository_dispatch:
+    types: [render-hd]
+  workflow_dispatch:
+    inputs:
+      package_path:
+        description: "Repo-relative path to analysis_package.json (e.g. queue/pkg_20261112_snooze01.json)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-hd
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      PACKAGE_PATH: ${{ github.event.client_payload.package_path || inputs.package_path }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate package path
+        run: |
+          set -euo pipefail
+          case "$PACKAGE_PATH" in
+            queue/*.json) ;;
+            *) echo "package_path must match queue/*.json" >&2; exit 1 ;;
+          esac
+          case "$PACKAGE_PATH" in
+            *..*) echo "invalid package_path" >&2; exit 1 ;;
+          esac
+          test -f "$PACKAGE_PATH"
+          PACKAGE_ID="$(basename "$PACKAGE_PATH" .json)"
+          echo "PACKAGE_ID=$PACKAGE_ID" >> "$GITHUB_ENV"
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg libcairo2-dev pkg-config python3-dev fonts-dejavu-core
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: engine/requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r engine/requirements.txt
+          pip install "git+https://github.com/JuneYaooo/rea-video" || echo "rea-video not installed (not needed for render)"
+
+      - name: Render audio-first 1080p60
+        run: |
+          mkdir -p renders
+          python3 engine/render_cairo.py --package "$PACKAGE_PATH" --hd-1080p60 --out renders
+
+      - name: Verify outputs
+        run: |
+          test -s "renders/${PACKAGE_ID}.mp4"
+          test -s "renders/${PACKAGE_ID}_cover.jpg"
+          ffprobe -v error -show_entries stream=codec_name,width,height,r_frame_rate -of compact "renders/${PACKAGE_ID}.mp4"
+
+      - name: Publish GitHub Release
+        run: |
+          TAG="render-${PACKAGE_ID}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" \
+            "renders/${PACKAGE_ID}.mp4" \
+            "renders/${PACKAGE_ID}_cover.jpg" \
+            --title "Render ${PACKAGE_ID}" \
+            --notes "1080p60 audio-first render of ${PACKAGE_ID}."

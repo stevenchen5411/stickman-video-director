@@ -1,0 +1,11 @@
+{
+  "id": "kael_calm_charon",
+  "format": "voice_persona/v1",
+  "type": "prebuilt",
+  "gemini_voice_name": "Charon",
+  "tts_model": "gemini-3.8-flash-tts",
+  "default_style": "Calm, authoritative, measured; low steady delivery.",
+  "pace_multiplier": 1.0,
+  "preview_audio_path": "12_voices/kael_calm_charon_preview.wav",
+  "preview_is_placeholder": true
+}

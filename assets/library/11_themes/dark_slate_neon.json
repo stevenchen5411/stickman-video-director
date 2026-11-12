@@ -1,0 +1,14 @@
+{
+  "id": "dark_slate_neon",
+  "format": "theme/v1",
+  "palette": {
+    "bg": "#0f172a",
+    "surface": "#1e293b",
+    "line": "#e2e8f0",
+    "text": "#f8fafc",
+    "accent": "#22d3ee",
+    "accent2": "#f472b6",
+    "highlight": "#facc15",
+    "danger": "#f87171"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "idle_breathing",
+  "format": "motion/v1",
+  "kind": "character",
+  "duration_sec": 2.4,
+  "loop": true,
+  "tracks": [
+    {
+      "target": "torso.scale_y",
+      "keys": [
+        [
+          0,
+          1.0,
+          "sine"
+        ],
+        [
+          1.2,
+          1.018,
+          "sine"
+        ],
+        [
+          2.4,
+          1.0,
+          "sine"
+        ]
+      ]
+    }
+  ]
+}

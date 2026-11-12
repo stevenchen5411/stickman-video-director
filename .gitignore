@@ -1,0 +1,18 @@
+# Whitelist: this working directory may be a home dir, so only repo paths are ever tracked.
+/*
+!/.gitignore
+!/CLAUDE.md
+!/.github/
+!/bootstrap/
+!/android-app/
+!/engine/
+!/assets/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+android-app/build/
+android-app/.gradle/
+local.properties
+*.apk
+.env

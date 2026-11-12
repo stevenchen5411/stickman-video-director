@@ -1,0 +1,20 @@
+{
+  "id": "clean_white_bar",
+  "format": "caption_style/v1",
+  "font": "DejaVu Sans",
+  "size_ratio": 0.045,
+  "case": "sentence",
+  "max_words_per_line": 6,
+  "position_y": 0.82,
+  "inactive_color": "#e2e8f0",
+  "active_word": {
+    "color": "#ffffff",
+    "scale_pop": 1.0,
+    "pop_ms": 0
+  },
+  "background": {
+    "color": "#000000",
+    "opacity": 0.55,
+    "radius_ratio": 0.01
+  }
+}

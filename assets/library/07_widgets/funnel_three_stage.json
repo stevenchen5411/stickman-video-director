@@ -1,0 +1,28 @@
+{
+  "id": "funnel_three_stage",
+  "format": "widget/v1",
+  "type": "funnel",
+  "data": {
+    "stages": [
+      {
+        "label": "Visitors",
+        "value": 1000
+      },
+      {
+        "label": "Leads",
+        "value": 240
+      },
+      {
+        "label": "Buyers",
+        "value": 38
+      }
+    ]
+  },
+  "animate": "drop_down",
+  "style": {
+    "gradient": [
+      "theme.accent",
+      "theme.accent2"
+    ]
+  }
+}

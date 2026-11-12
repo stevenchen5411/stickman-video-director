@@ -1,0 +1,18 @@
+{
+  "id": "smirk_confident",
+  "format": "expression/v1",
+  "brows": {
+    "l_angle": 10,
+    "r_angle": -5,
+    "raise": 0.0
+  },
+  "eyes": {
+    "open": 0.65,
+    "pupil_scale": 1.0,
+    "look": [
+      0,
+      0
+    ]
+  },
+  "mouth_rest": "smirk_right"
+}

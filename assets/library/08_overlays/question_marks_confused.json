@@ -1,0 +1,14 @@
+{
+  "id": "question_marks_confused",
+  "format": "overlay/v1",
+  "kind": "floating_text",
+  "anchor": "character.head",
+  "text": "?",
+  "count": 3,
+  "color": "theme.highlight",
+  "size": 0.05,
+  "motion": {
+    "bob": 0.01,
+    "lifetime_sec": 1.2
+  }
+}

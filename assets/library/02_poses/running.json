@@ -1,0 +1,21 @@
+{
+  "id": "running",
+  "format": "pose/v1",
+  "angles_unit": "degrees_from_vertical",
+  "joints": {
+    "torso_lean": 12,
+    "neck": 0,
+    "l_shoulder": 50,
+    "l_elbow": 90,
+    "r_shoulder": -50,
+    "r_elbow": -90,
+    "l_hip": 40,
+    "l_knee": 60,
+    "r_hip": -35,
+    "r_knee": 10
+  },
+  "hand_anchors": {
+    "l": "free",
+    "r": "free"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "luna_warm_aoede",
+  "format": "voice_persona/v1",
+  "type": "prebuilt",
+  "gemini_voice_name": "Aoede",
+  "tts_model": "gemini-3.8-flash-tts",
+  "default_style": "Warm, gentle, wise; unhurried with soft endings.",
+  "pace_multiplier": 1.0,
+  "preview_audio_path": "12_voices/luna_warm_aoede_preview.wav",
+  "preview_is_placeholder": true
+}

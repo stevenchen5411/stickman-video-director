@@ -1,0 +1,9 @@
+{
+  "id": "wipe_diagonal",
+  "format": "transition/v1",
+  "type": "wipe",
+  "angle_deg": 35,
+  "duration_sec": 0.3,
+  "edge_color": "theme.accent",
+  "easing": "ease_in_out"
+}

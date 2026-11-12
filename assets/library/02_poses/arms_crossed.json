@@ -1,0 +1,21 @@
+{
+  "id": "arms_crossed",
+  "format": "pose/v1",
+  "angles_unit": "degrees_from_vertical",
+  "joints": {
+    "torso_lean": 0,
+    "neck": 0,
+    "l_shoulder": 35,
+    "l_elbow": 115,
+    "r_shoulder": -35,
+    "r_elbow": -115,
+    "l_hip": 4,
+    "l_knee": 0,
+    "r_hip": -4,
+    "r_knee": 0
+  },
+  "hand_anchors": {
+    "l": "chest",
+    "r": "chest"
+  }
+}
