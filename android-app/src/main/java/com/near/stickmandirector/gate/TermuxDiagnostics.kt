@@ -62,7 +62,7 @@ class TermuxDiagnostics(private val ctx: Context) {
             val bad = h.flags.filterValues { !it }.keys
             rows += when {
                 h.flags.isEmpty() -> DiagRow("flags", "Engine health", DiagState.WARN, "No flags reported")
-                bad.isEmpty() -> DiagRow("flags", "Engine health", DiagState.OK, "python, ffmpeg, pycairo, yt-dlp, rea-video, storage: all OK")
+                bad.isEmpty() -> DiagRow("flags", "Engine health", DiagState.OK, "python, ffmpeg, pycairo, yt-dlp, storage: all OK (scene detection: ffmpeg)")
                 else -> DiagRow("flags", "Engine health", DiagState.WARN, "Missing: ${bad.joinToString()}. Re-run the 1-line setup in Termux.")
             }
         }

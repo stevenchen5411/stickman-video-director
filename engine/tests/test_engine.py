@@ -548,7 +548,7 @@ def test_server_health_and_routes():
     import server
     c = TestClient(server.app)
     h = c.get("/health").json()
-    assert set(h["flags"]) == {"python", "yt_dlp", "rea_video", "pycairo", "ffmpeg", "shared_storage_writable"}
+    assert set(h["flags"]) == {"python", "yt_dlp", "pycairo", "ffmpeg", "shared_storage_writable"}
     assert c.get("/queue").json() == [] and c.get("/queue/..%2Fetc").status_code in (404, 422)
     assert c.post("/forge", json={"category": "99_x", "id": "a"}).status_code == 422
     assert c.post("/render/draft", json={"package_id": "nope"}).status_code == 404

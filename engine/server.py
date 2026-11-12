@@ -132,14 +132,17 @@ def health(request: Request) -> Dict[str, Any]:
     flags = {
         "python": True,
         "yt_dlp": common.have_module("yt_dlp"),
-        "rea_video": common.which("rea-video") is not None,
         "pycairo": common.have_module("cairo"),
         "ffmpeg": common.which("ffmpeg") is not None,
         "shared_storage_writable": _writable(common.home()),
     }
     extra = {"cairosvg": common.have_module("cairosvg"), "google_genai": common.have_module("google.genai"),
              "youtube_transcript_api": common.have_module("youtube_transcript_api")}
-    return {"status": "ok" if all(flags.values()) else "degraded", "version": VERSION, "flags": flags,
+    rea = common.which("rea-video") is not None
+    extra["rea_video"] = rea
+    # rea-video is optional: without it forensics uses ffmpeg scene detection, which is a normal mode, not a degradation.
+    mode = "rea_video" if rea else "ffmpeg_fallback"
+    return {"status": "ok" if all(flags.values()) else "degraded", "mode": mode, "version": VERSION, "flags": flags,
             "optional": extra, "ai_providers": llm.available(), "home": str(common.home()),
             "auth": {"required": bool(_token()), "ok": _token_ok(request)},
             "ai_status": llm.status(), "claude_bridge": claude_web.bridge_up(0.4)}

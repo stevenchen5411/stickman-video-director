@@ -59,6 +59,8 @@ pkg update -y >/dev/null 2>&1 || warn "pkg update reported an error"
 pkg install -y python ffmpeg git curl gh clang make pkg-config rust binutils \
   libcairo python-numpy python-scipy python-pillow libffi openssl termux-api \
   || warn "Some pkg installs failed; check output above"
+# Prebuilt pycairo for Termux (the pip sdist cannot find cairo via pkg-config on Android).
+pkg install -y pycairo >/dev/null 2>&1 || warn "pycairo package not installed; thumbnails/renders fall back to cairosvg"
 pkg install -y ttf-dejavu >/dev/null 2>&1 || warn "ttf-dejavu not installed; captions will use the default font"
 
 # --- 4. Repo -----------------------------------------------------------------

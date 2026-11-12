@@ -26,6 +26,7 @@ class MainActivity : Activity() {
     private lateinit var back: BackScope
     private var gate: ConnectGateScreen? = null
     private var workspace: MainWorkspaceView? = null
+    private var askedNotif = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +49,21 @@ class MainActivity : Activity() {
         setContentView(root)
         showGate()
         intent?.data?.let { gate?.handleAuthRedirect(it) }
+        ensureBridge()
+    }
+
+    /** Starts the loopback Claude-web bridge as soon as a saved Claude web session exists (idempotent). */
+    private fun ensureBridge() {
+        if (SecureStore.get(this).loadCred("claude")?.cookies?.isNotEmpty() != true) return
+        BridgeService.start(this)
+        if (android.os.Build.VERSION.SDK_INT >= 33 && !askedNotif &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            askedNotif = true
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 4102)
+        }
+        // Let the bridge come up, then re-run the gate diagnostics so "Claude web session" flips to OK without a manual refresh.
+        root.postDelayed({ gate?.refreshAll() }, 2500)
+        root.postDelayed({ gate?.refreshAll() }, 7000)
     }
 
     private fun showGate(autoUnlock: Boolean = true) {
@@ -65,14 +81,7 @@ class MainActivity : Activity() {
         root.removeAllViews()
         val w = MainWorkspaceView(this, back) { showGate(autoUnlock = false) }
         workspace = w
-        // Claude web-session users need the loopback bridge alive for the Termux engine.
-        if (SecureStore.get(this).loadCred("claude")?.cookies?.isNotEmpty() == true) {
-            BridgeService.start(this)
-            if (android.os.Build.VERSION.SDK_INT >= 33 &&
-                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 4102)
-            }
-        }
+        ensureBridge()   // Claude web-session users need the loopback bridge alive for the Termux engine.
         root.addView(w.view, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     }
 
@@ -84,6 +93,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        ensureBridge()
         gate?.refreshAll()
         workspace?.onResume()
     }
