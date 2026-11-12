@@ -9,7 +9,7 @@ REPO_OWNER="${REPO_OWNER:-stevenchen5411}"
 REPO_NAME="${REPO_NAME:-stickman-video-director}"
 REPO_URL="${REPO_URL:-https://github.com/${REPO_OWNER}/${REPO_NAME}.git}"
 REPO_DIR="${REPO_DIR:-$HOME/${REPO_NAME}}"
-PORT="${STICKMAN_PORT:-8765}"
+PORT="${STICKMAN_PORT:-8775}"
 
 say()  { printf '\033[1;36m[setup]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*" >&2; }

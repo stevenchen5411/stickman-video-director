@@ -49,8 +49,8 @@ class TermuxDiagnostics(private val ctx: Context) {
         // 2. daemon reachable
         val h = termux.health()
         lastHealth = h
-        rows += if (h.reachable) DiagRow("daemon", "Daemon on 127.0.0.1:8765", DiagState.OK, "Reachable (${h.status})")
-        else DiagRow("daemon", "Daemon on 127.0.0.1:8765", DiagState.FAIL,
+        rows += if (h.reachable) DiagRow("daemon", "Daemon on 127.0.0.1:8775", DiagState.OK, "Reachable (${h.status})")
+        else DiagRow("daemon", "Daemon on 127.0.0.1:8775", DiagState.FAIL,
             "Not reachable (${h.error ?: "no answer"}). Fix will send start_daemon.sh to Termux; if setup was never run, use 'Copy 1-Line Setup'.", installed && granted)
 
         // 2b. token

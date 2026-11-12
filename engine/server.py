@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""FastAPI daemon on 127.0.0.1:8765 (never binds to other interfaces).
+"""FastAPI daemon on 127.0.0.1:8775 (never binds to other interfaces).
 
 Endpoints: GET /health, POST /pipeline/auto, GET /jobs[/{id}], GET /queue[/{package_id}], POST /forge,
 POST /forge/rebuild-thumbs, POST /curate, POST /render/draft, GET /library.
 Long work runs on a single background worker (jobs are serialized so Termux CPU/RAM is never oversubscribed).
 
-Run: python3 -m uvicorn server:app --host 127.0.0.1 --port 8765   (from engine/)  or  python3 engine/server.py
+Run: python3 -m uvicorn server:app --host 127.0.0.1 --port 8775   (from engine/)  or  python3 engine/server.py
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ import llm
 import schemas
 
 VERSION = "1.0.0"
-HOST, PORT = "127.0.0.1", 8765
+HOST, PORT = "127.0.0.1", 8775
 ID_PATTERN = r"^[A-Za-z0-9_\-]{1,64}$"
 
 app = FastAPI(title="Stickman Director Engine", version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)

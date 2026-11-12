@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 data class WakeResult(val sent: Boolean, val message: String)
 
-/** HTTP + RUN_COMMAND bridge to the Termux daemon on 127.0.0.1:8765. All network methods block: call off the main thread. */
+/** HTTP + RUN_COMMAND bridge to the Termux daemon on 127.0.0.1:8775. All network methods block: call off the main thread. */
 class TermuxClient(private val ctx: Context) {
     private val store = SecureStore.get(ctx)
     private val http = OkHttpClient.Builder()

@@ -558,7 +558,7 @@ def test_server_health_and_routes():
 
 def test_server_binds_loopback_only():
     src = (ROOT / "engine" / "server.py").read_text(encoding="utf-8")
-    assert 'HOST, PORT = "127.0.0.1", 8765' in src and "0.0.0.0" not in src
+    assert 'HOST, PORT = "127.0.0.1", 8775' in src and "0.0.0.0" not in src
 
 
 # ---------------------------------------------------------------- runtime keys + token (M3)

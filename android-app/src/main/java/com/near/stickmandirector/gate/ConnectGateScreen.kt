@@ -29,7 +29,7 @@ import com.near.stickmandirector.ui.Ui
 
 /**
  * Mandatory 3-point gate. The app unlocks only when ALL pass:
- *   #1 AI: at least one provider usable      #2 Termux: daemon on 127.0.0.1:8765 accepts our token
+ *   #1 AI: at least one provider usable      #2 Termux: daemon on 127.0.0.1:8775 accepts our token
  *   #3 GitHub: PAT valid with push access to the repo
  * Gate #2 offers "Copy 1-Line Setup" (paste into Termux) plus the diagnostics list with Fix buttons.
  */
@@ -195,7 +195,7 @@ class ConnectGateScreen(
 
     // ---- Gate 2
     private fun termuxCard(): View = Ui.card(ctx).apply {
-        addView(header(2, "Termux engine (127.0.0.1:8765)", termuxOk))
+        addView(header(2, "Termux engine (127.0.0.1:8775)", termuxOk))
         addView(Ui.muted(ctx, "The Python engine runs in Termux. First time? Copy the setup line, paste it into Termux and run it."), Ui.lp(top = 4, ctx = ctx))
         addView(Ui.button(ctx, "Copy 1-Line Setup", true) {
             val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

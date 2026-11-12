@@ -1,7 +1,7 @@
 # Stickman Video Director — Claude Code operational memory
 
 Repo: `stevenchen5411/stickman-video-director` (GitHub). Android package: `com.near.stickmandirector`.
-Three-node pipeline: plain-Kotlin Android app  <->  Termux Python daemon (`127.0.0.1:8765`)  <->  GitHub Actions.
+Three-node pipeline: plain-Kotlin Android app  <->  Termux Python daemon (`127.0.0.1:8775`)  <->  GitHub Actions.
 Read this file first on every turn; update the milestone checklist when a milestone is confirmed.
 
 ## 1. Split workflow (Termux `aarch64` vs GitHub Actions CI)
@@ -50,7 +50,7 @@ Read this file first on every turn; update the milestone checklist when a milest
 - Without any usable AI provider `director.py` produces `draft` packages from the transcript (never `ready_to_generate`); TTS falls back to a placeholder formant voice so drafts/keyframes still render.
 - `rea-video` has no VIDEO.md output: `forensics.py` runs `rea-video decompose VIDEO -o DIR --no-packaging`, parses `breakdown.json` tolerantly, falls back to ffmpeg scene detection, and writes VIDEO.md + `shots.json` itself.
 - `audio_master.py` computes the -20 dB BGM ducking as an explicit envelope from the voice track (exact depth), then FFmpeg does the voice chain, mix and two-pass `loudnorm`.
-- Run (Termux): `python3 engine/forge.py --rebuild-thumbs`, `python3 -m pytest engine/tests -q`, daemon: `~/.stickman/start_daemon.sh` then `curl 127.0.0.1:8765/health`.
+- Run (Termux): `python3 engine/forge.py --rebuild-thumbs`, `python3 -m pytest engine/tests -q`, daemon: `~/.stickman/start_daemon.sh` then `curl 127.0.0.1:8775/health`.
 - Tests use `engine/tests/fake_cairo.py` only when real pycairo is missing; real pycairo is used automatically in Termux.
 
 ## 4b. Seed library formats

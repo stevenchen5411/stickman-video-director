@@ -5,7 +5,7 @@ import org.json.JSONObject
 
 /** Plain org.json models mirroring engine/schemas.py (no serialization plugin). */
 object Defaults {
-    const val DAEMON_URL = "http://127.0.0.1:8765"
+    const val DAEMON_URL = "http://127.0.0.1:8775"
     const val STORAGE_DIR = "/storage/emulated/0/StickmanDirector"
     const val TERMUX_PKG = "com.termux"
     const val TERMUX_HOME = "/data/data/com.termux/files/home"
