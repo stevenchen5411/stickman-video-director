@@ -16,6 +16,7 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import re
 import sys
 import wave
@@ -203,43 +204,111 @@ def _voice_cfg_dict(voice: str) -> Dict[str, Any]:
     return {"voice_config": {"prebuilt_voice_config": {"voice_name": voice}}}
 
 
-def gemini_synthesize(client, text: str, style: str, voice: str, model: str = TTS_MODEL) -> Tuple[np.ndarray, int]:
-    """Single-speaker synthesis. Primary path: client.interactions.create(... speech_metadata={"style": ...})."""
-    try:
-        resp = client.interactions.create(model=model, input=text, response_modalities=["AUDIO"],
-                                          speech_config=_voice_cfg_dict(voice), speech_metadata={"style": style})
+# Free-tier quota is per model (e.g. 10 requests/day on gemini-3.8-flash-tts), so we fail over across the TTS line.
+TTS_MODELS = [m for m in dict.fromkeys([os.environ.get("STICKMAN_TTS_MODEL", TTS_MODEL), TTS_MODEL,
+                                        "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview",
+                                        "gemini-2.5-flash-preview-tts"]) if m]
+_EXHAUSTED: Dict[str, float] = {}          # model -> unix time until which its quota is spent
+
+
+def style_tag(style: str, max_words: int = 6) -> str:
+    """Acting direction -> a short inline audio tag. The TTS API has no style field (a 'developer instruction' is
+    rejected) and a 'Say ...:' prefix gets read aloud, but a short [tag] is treated as direction."""
+    first = re.split(r"[.!?\n]", (style or "").strip(), maxsplit=1)[0]
+    words = re.sub(r"[^A-Za-z, -]", " ", first).lower().split()[:max_words]
+    return " ".join(words).strip(" ,-")
+
+
+def tagged(text: str, style: str) -> str:
+    t = style_tag(style)
+    return f"[{t}] {text}" if t else text
+
+
+def _retry_after(msg: str) -> float:
+    m = re.search(r"retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?", msg)
+    if m and any(m.groups()):
+        h, mi, sec = (float(g) if g else 0.0 for g in m.groups())
+        return h * 3600 + mi * 60 + sec
+    m = re.search(r"retryDelay'?: ?'?([\d.]+)s", msg)
+    return float(m.group(1)) if m else 60.0
+
+
+def _with_models(call, model: Optional[str]):
+    """Run call(model_id) over the usable TTS models: hop on a spent quota (429), retry once on transient 5xx."""
+    import time as _t
+    models = [model] if model else [m for m in TTS_MODELS if _EXHAUSTED.get(m, 0) <= _t.time()]
+    if not models:
+        raise RuntimeError("Gemini TTS: every model's free quota is spent (resets daily); enable billing or wait")
+    last: Optional[Exception] = None
+    for m in models:
+        for attempt in range(2):
+            try:
+                out = call(m)
+                log.info("tts via %s", m)
+                return out
+            except Exception as e:  # noqa: BLE001
+                last = e
+                msg = str(e)
+                if "RESOURCE_EXHAUSTED" in msg or msg.startswith("429"):
+                    wait = _retry_after(msg)
+                    if wait <= 45 and attempt == 0:          # per-minute limit: wait it out once
+                        _t.sleep(wait + 1)
+                        continue
+                    _EXHAUSTED[m] = _t.time() + wait
+                    log.warning("tts model %s quota spent (retry in %.0fs); trying the next model", m, wait)
+                    break
+                if attempt == 0 and (" 500 " in f" {msg[:40]} " or "INTERNAL" in msg or " 503 " in f" {msg[:40]} "):
+                    _t.sleep(2)
+                    continue
+                raise
+    raise last if last else RuntimeError("no TTS model available")
+
+
+def gemini_synthesize(client, text: str, style: str, voice: str, model: Optional[str] = None) -> Tuple[np.ndarray, int]:
+    """Single-speaker synthesis. Style goes in as an inline [tag] inside the text (no style/system field exists)."""
+    line = tagged(text, style)
+
+    def one(m: str) -> Tuple[np.ndarray, int]:
+        try:
+            resp = client.interactions.create(model=m, input=line, response_modalities=["AUDIO"],
+                                              speech_config=_voice_cfg_dict(voice))
+            for mime, data in _walk(resp):
+                return decode_audio_payload(mime, data)
+            raise RuntimeError("interactions response had no audio")
+        except (AttributeError, TypeError) as e:
+            log.info("interactions API unavailable (%s); using generate_content", str(e)[:80])
+        from google.genai import types
+        cfg = types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice))))
+        resp = client.models.generate_content(model=m, contents=line, config=cfg)
         for mime, data in _walk(resp):
             return decode_audio_payload(mime, data)
-        raise RuntimeError("interactions response had no audio")
-    except (AttributeError, TypeError) as e:
-        log.info("interactions API unavailable (%s); using generate_content", str(e)[:80])
-    from google.genai import types
-    cfg = types.GenerateContentConfig(
-        response_modalities=["AUDIO"], system_instruction=style or None,
-        speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice))))
-    resp = client.models.generate_content(model=model, contents=text, config=cfg)
-    for mime, data in _walk(resp):
-        return decode_audio_payload(mime, data)
-    raise RuntimeError("generate_content response had no audio")
+        raise RuntimeError("generate_content response had no audio")
+
+    return _with_models(one, model)
 
 
-def gemini_multispeaker(client, turns: List[Dict[str, str]], model: str = TTS_MODEL) -> Tuple[np.ndarray, int]:
+def gemini_multispeaker(client, turns: List[Dict[str, str]], model: Optional[str] = None) -> Tuple[np.ndarray, int]:
     """turns: [{speaker, voice, text, style}] with exactly two distinct speakers."""
     from google.genai import types
     speakers = list(dict.fromkeys(t["speaker"] for t in turns))
     voice_of = {t["speaker"]: t["voice"] for t in turns}
     cfg = types.GenerateContentConfig(
         response_modalities=["AUDIO"],
-        system_instruction="; ".join(f'{t["speaker"]}: {t["style"]}' for t in turns if t["style"])[:1500] or None,
         speech_config=types.SpeechConfig(multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
             speaker_voice_configs=[types.SpeakerVoiceConfig(speaker=s, voice_config=types.VoiceConfig(
                 prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_of[s]))) for s in speakers])))
-    script = "\n".join(f'{t["speaker"]}: {t["text"]}' for t in turns)
-    resp = client.models.generate_content(model=model, contents=script, config=cfg)
-    for mime, data in _walk(resp):
-        return decode_audio_payload(mime, data)
-    raise RuntimeError("multi-speaker response had no audio")
+    script = "\n".join(f'{t["speaker"]}: {tagged(t["text"], t.get("style", ""))}' for t in turns)
+
+    def one(m: str) -> Tuple[np.ndarray, int]:
+        resp = client.models.generate_content(model=m, contents=script, config=cfg)
+        for mime, data in _walk(resp):
+            return decode_audio_payload(mime, data)
+        raise RuntimeError("multi-speaker response had no audio")
+
+    return _with_models(one, model)
 
 
 def design_voice(client, name: str, description: str) -> str:

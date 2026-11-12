@@ -180,6 +180,27 @@ def config_sessions(req: SessionRequest) -> Dict[str, Any]:
     return {"ok": True, "bridge_up": claude_web.bridge_up()}
 
 
+class TtsProbe(BaseModel):
+    model: str = ""                # empty = normal failover across the TTS models
+    voice: str = "Charon"
+    text: str = "Nobody had ever tried this. Then, one day, she did."
+    style: str = ""
+
+
+@app.post("/selftest/tts")
+def selftest_tts(req: TtsProbe) -> Dict[str, Any]:
+    """Diagnostics: one Gemini TTS call with the in-memory key. Returns timing/duration or the FULL error text."""
+    import tts_expressive as tts
+    t0 = time.time()
+    try:
+        x, sr = tts.gemini_synthesize(tts._client(), req.text, req.style, req.voice, req.model or None)
+        return {"ok": True, "seconds": round(time.time() - t0, 1), "audio_sec": round(len(x) / sr, 2),
+                "exhausted": sorted(tts._EXHAUSTED)}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "seconds": round(time.time() - t0, 1), "error": f"{type(e).__name__}: {str(e)[:1500]}",
+                "exhausted": sorted(tts._EXHAUSTED)}
+
+
 @app.post("/pipeline/auto")
 def pipeline_auto(req: AutoRequest) -> Dict[str, str]:
     import pipeline

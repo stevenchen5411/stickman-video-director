@@ -355,7 +355,7 @@ def test_audio_payload_extraction_from_sdk_shapes():
     assert tts.decode_audio_payload(mime, data)[1] == 16000
 
 
-def test_gemini_adapter_keeps_text_verbatim_and_style_in_metadata():
+def test_gemini_adapter_keeps_text_verbatim_and_style_as_inline_tag():
     seen = {}
     pcm = (np.sin(np.arange(2400) / 10) * 8000).astype("<i2").tobytes()
 
@@ -366,8 +366,32 @@ def test_gemini_adapter_keeps_text_verbatim_and_style_in_metadata():
 
     client = SimpleNamespace(interactions=Interactions())
     x, sr = tts.gemini_synthesize(client, "Hello there.", "warm and slow", "Charon")
-    assert seen["model"] == "gemini-3.8-flash-tts" and seen["input"] == "Hello there."
-    assert seen["speech_metadata"] == {"style": "warm and slow"} and sr == 24000
+    # the API has no style field (it rejects developer instructions): delivery rides along as a short inline [tag]
+    assert seen["model"] == "gemini-3.8-flash-tts" and seen["input"] == "[warm and slow] Hello there."
+    assert "speech_metadata" not in seen and "system_instruction" not in seen and sr == 24000
+    seen.clear()
+    tts.gemini_synthesize(client, "Hello there.", "", "Charon")
+    assert seen["input"] == "Hello there."
+
+
+def test_gemini_tts_fails_over_when_a_models_daily_quota_is_spent():
+    tts._EXHAUSTED.clear()
+    calls = []
+    pcm = (np.sin(np.arange(2400) / 10) * 8000).astype("<i2").tobytes()
+
+    class Interactions:
+        def create(self, **kw):
+            calls.append(kw["model"])
+            if kw["model"] == "gemini-3.8-flash-tts":
+                raise RuntimeError("429 RESOURCE_EXHAUSTED. Please retry in 12h22m19.7s.")
+            return {"outputs": [{"audio": {"data": pcm, "mime_type": "audio/L16;rate=24000"}}]}
+
+    client = SimpleNamespace(interactions=Interactions())
+    x, sr = tts.gemini_synthesize(client, "Hi.", "calm", "Charon")
+    assert calls == ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"] and sr == 24000
+    tts.gemini_synthesize(client, "Again.", "calm", "Charon")          # spent model is skipped from now on
+    assert calls[2:] == ["gemini-3.8-flash-lite-tts"]
+    tts._EXHAUSTED.clear()
 
 
 def test_synthesize_package_placeholder_and_cache(tmp_path):
