@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <queries>
         <package android:name="com.termux" />
@@ -39,5 +42,15 @@
                 <data android:scheme="com.near.stickmandirector" />
             </intent-filter>
         </activity>
+
+        <!-- Keeps the loopback claude.ai bridge (127.0.0.1:8766) and its hidden WebView alive for the Termux engine. -->
+        <service
+            android:name=".bridge.BridgeService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Loopback bridge that lets the local engine call the signed-in claude.ai session through the app's WebView" />
+        </service>
     </application>
 </manifest>

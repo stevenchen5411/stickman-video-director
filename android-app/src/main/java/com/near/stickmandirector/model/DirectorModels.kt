@@ -34,6 +34,7 @@ data class ProviderCred(
     val expiresAtMs: Long = 0L,
     val cooldownUntilMs: Long = 0L,
     val enabled: Boolean = true,
+    val orgId: String? = null,
 ) {
     val usable: Boolean
         get() = enabled && (!apiKey.isNullOrBlank() ||
@@ -48,6 +49,7 @@ data class ProviderCred(
         put("cookies", JSONObject(cookies))
         put("userAgent", userAgent ?: JSONObject.NULL)
         put("expiresAtMs", expiresAtMs); put("cooldownUntilMs", cooldownUntilMs); put("enabled", enabled)
+        put("orgId", orgId ?: JSONObject.NULL)
     }
 
     companion object {
@@ -62,7 +64,7 @@ data class ProviderCred(
                 refreshToken = o.optStringOrNull("refreshToken"), cookies = ck,
                 userAgent = o.optStringOrNull("userAgent"),
                 expiresAtMs = o.optLong("expiresAtMs", 0L), cooldownUntilMs = o.optLong("cooldownUntilMs", 0L),
-                enabled = o.optBoolean("enabled", true),
+                enabled = o.optBoolean("enabled", true), orgId = o.optStringOrNull("orgId"),
             )
         }
     }
@@ -133,6 +135,9 @@ data class HealthReport(
     val authRequired: Boolean = false,
     val authOk: Boolean = true,
     val error: String? = null,
+    /** provider -> ok | cooldown | needs_refresh | no_credentials (from the engine's failover state). */
+    val aiStatus: Map<String, String> = emptyMap(),
+    val claudeBridgeUp: Boolean = false,
 ) {
     val allFlagsOk: Boolean get() = flags.isNotEmpty() && flags.values.all { it }
 
@@ -142,8 +147,11 @@ data class HealthReport(
             o.optJSONObject("flags")?.let { j -> j.keys().forEach { f[it] = j.optBoolean(it) } }
             val ai = o.optJSONArray("ai_providers")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
             val auth = o.optJSONObject("auth")
+            val st = mutableMapOf<String, String>()
+            o.optJSONObject("ai_status")?.let { j -> j.keys().forEach { k -> st[k] = j.optJSONObject(k)?.optString("state") ?: "" } }
             return HealthReport(true, o.optString("status", "ok"), f, ai,
-                auth?.optBoolean("required") ?: false, auth?.optBoolean("ok", true) ?: true)
+                auth?.optBoolean("required") ?: false, auth?.optBoolean("ok", true) ?: true,
+                null, st, o.optBoolean("claude_bridge", false))
         }
     }
 }

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.near.stickmandirector.auth.ProvidersStore
 import com.near.stickmandirector.auth.SecureStore
+import com.near.stickmandirector.model.AuthMode
 import com.near.stickmandirector.model.Defaults
 import com.near.stickmandirector.model.HealthReport
 import okhttp3.MediaType.Companion.toMediaType
@@ -52,8 +53,22 @@ class TermuxClient(private val ctx: Context) {
     /** Push plaintext API keys into the daemon's memory (never written to disk there). */
     fun pushKeysBlocking(): Boolean = try {
         val keys = JSONObject(ProvidersStore.runtimeKeys(ctx))
-        post("/config/keys", JSONObject().put("keys", keys)); true
+        post("/config/keys", JSONObject().put("keys", keys))
+        pushSessionBlocking()
+        true
     } catch (t: Throwable) { false }
+
+    /** Push the claude.ai web session (live WebView cookie jar if present) so Termux can call it via curl_cffi. */
+    fun pushSessionBlocking(): Boolean {
+        val c = store.loadCred("claude") ?: return false
+        if (c.mode != AuthMode.SESSION || c.cookies.isEmpty()) return false
+        val live = runCatching { android.webkit.CookieManager.getInstance().getCookie("https://claude.ai") }.getOrNull()
+        val header = if (!live.isNullOrBlank()) live else c.cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+        return try {
+            post("/config/sessions", JSONObject().put("provider", "claude").put("cookie_header", header)
+                .put("user_agent", c.userAgent ?: "").put("org_id", c.orgId ?: JSONObject.NULL)); true
+        } catch (t: Throwable) { false }
+    }
 
     // ------------------------------------------------------------------ RUN_COMMAND
     /** Fire a command in Termux's background (needs com.termux.permission.RUN_COMMAND + allow-external-apps). */

@@ -146,9 +146,9 @@ class AuthSelfHealer(private val ctx: Context) {
     }
 
     /** Layer 3 result from the WebView sniffer. */
-    fun saveSession(provider: String, cookies: Map<String, String>, userAgent: String): AuthResult {
+    fun saveSession(provider: String, cookies: Map<String, String>, userAgent: String, orgId: String? = null): AuthResult {
         if (cookies.isEmpty()) return AuthResult.Failed(3, "No session cookies captured")
-        val c = ProviderCred(provider, AuthMode.SESSION, cookies = cookies, userAgent = userAgent)
+        val c = ProviderCred(provider, AuthMode.SESSION, cookies = cookies, userAgent = userAgent, orgId = orgId)
         store.saveCred(c)
         return AuthResult.Success(c, 3)
     }

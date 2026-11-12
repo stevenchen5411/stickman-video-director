@@ -49,6 +49,7 @@ object ProvidersStore {
             o.put("auth_mode", wireMode(c.name, c, !c.accessToken.isNullOrBlank()))
             o.put("api_key", enc(c.apiKey))
             o.put("access_token", enc(c.accessToken))
+            if (c.name == "claude") o.put("endpoint", c.orgId?.let { "https://claude.ai/api/organizations/$it" } ?: JSONObject.NULL)
             if (c.name != "claude") o.put("refresh_token", enc(c.refreshToken))
             if (c.name != "gemini") {
                 val ck = JSONObject(); c.cookies.forEach { (k, v) -> ck.put(k, KeystoreCrypto.encrypt(v)) }

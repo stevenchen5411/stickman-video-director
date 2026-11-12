@@ -17,8 +17,14 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.near.stickmandirector.bridge.ClaudeWebJs
+import com.near.stickmandirector.bridge.WebRunner
 import com.near.stickmandirector.model.AuthEndpoints
+import org.json.JSONArray
 import com.near.stickmandirector.ui.Ui
+
+/** What the sniffer hands back. [cookieHeader] is the live jar for the site; [orgId] is set once /api/organizations answered. */
+data class SessionCapture(val cookies: Map<String, String>, val cookieHeader: String, val userAgent: String, val orgId: String?)
 
 /**
  * Layer 3. Full-screen web sign-in that watches CookieManager for the provider's session cookie
@@ -31,11 +37,14 @@ import com.near.stickmandirector.ui.Ui
 class WebViewSnifferDialog(
     private val activity: Activity,
     private val ep: AuthEndpoints,
-    private val onCaptured: (cookies: Map<String, String>, userAgent: String) -> Unit,
+    private val onCaptured: (SessionCapture) -> Unit,
     private val onFallbackToKey: () -> Unit,
 ) : Dialog(activity, android.R.style.Theme_DeviceDefault_NoActionBar) {
 
     private lateinit var web: WebView
+    private lateinit var runner: WebRunner
+    private var verifying = false
+    private var verifyTries = 0
     private var polling = false
     private var done = false
 
@@ -75,6 +84,7 @@ class WebViewSnifferDialog(
             webViewClient = WebViewClient()
             loadUrl(ep.webLoginUrl)
         }
+        runner = WebRunner(web)
         root.addView(web, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val frame = FrameLayout(ctx).apply { addView(root) }
@@ -98,22 +108,75 @@ class WebViewSnifferDialog(
             if (!polling || done) return
             val found = capture()
             val sessionOk = ep.sessionCookieNames.isEmpty() || ep.sessionCookieNames.any { found.containsKey(it) }
-            val cfOk = ep.cloudflareCookieNames.isEmpty() || ep.cloudflareCookieNames.all { found.containsKey(it) }
             if (found.isNotEmpty() && sessionOk) {
-                status.text = if (cfOk) "Session captured" else "Session captured (no ${ep.cloudflareCookieNames.joinToString()} yet)"
-                if (cfOk || ++waitedAfterSession > 6) {
-                    done = true
-                    CookieManager.getInstance().flush()
-                    onCaptured(found, web.settings.userAgentString)
-                    dismiss(); return
-                }
+                if (ep.provider == "claude") verifyClaude(status) else finish(status, null)
+                if (done) return
             }
             Bg.uiDelayed(1500) { tick() }
         }
         tick()
     }
 
-    private var waitedAfterSession = 0
+    /**
+     * Force-warm + verify inside the WebView before "captured" turns green: GET /api/organizations with the live
+     * cookie jar. A 200 proves the session works and makes Cloudflare issue cf_clearance if it wants one for this network.
+     */
+    private fun verifyClaude(status: android.widget.TextView) {
+        if (verifying) return
+        val host = Uri.parse(web.url ?: "").host.orEmpty()
+        if (!host.endsWith("claude.ai")) { status.text = "Waiting for claude.ai..."; return }
+        verifying = true
+        status.text = "Verifying session..."
+        runner.run({ tag -> ClaudeWebJs.listOrgs(tag) }, 20_000) { res ->
+            verifying = false
+            if (!polling || done) return@run          // dialog closed while verifying
+            val code = res.optInt("status")
+            if (code == 200) {
+                val org = runCatching {
+                    val arr = JSONArray(res.optString("body"))
+                    var pick: String? = null
+                    for (i in 0 until arr.length()) {
+                        val o = arr.getJSONObject(i)
+                        val caps = o.optJSONArray("capabilities")
+                        val chat = caps != null && (0 until caps.length()).any { caps.optString(it) == "chat" }
+                        if (pick == null || chat) pick = o.optString("uuid").ifBlank { null } ?: pick
+                        if (chat) break
+                    }
+                    pick
+                }.getOrNull()
+                if (org != null) finish(status, org)
+                else status.text = "Signed in, but no organization found on this account"
+            } else {
+                verifyTries++
+                status.text = when {
+                    code == 401 || code == 403 -> "Not verified yet (HTTP $code). If a check page is showing, finish it; try again shortly."
+                    else -> "Could not verify (${res.optString("error", "HTTP $code")}). Retrying..."
+                }
+                if (verifyTries >= 40) status.text = "Verification keeps failing (HTTP $code). Close and retry, or use an API key."
+            }
+        }
+    }
+
+    private fun finish(status: android.widget.TextView, orgId: String?) {
+        done = true
+        val cm = CookieManager.getInstance()
+        cm.flush()
+        val header = ep.cookieDomains.firstNotNullOfOrNull { d -> cm.getCookie("https://" + d.trimStart('.'))?.takeIf { it.isNotBlank() } }.orEmpty()
+        val jar = if (ep.provider == "claude") parseHeader(header) else capture()
+        val cf = if (ep.cloudflareCookieNames.all { jar.containsKey(it) }) "" else " (no ${ep.cloudflareCookieNames.joinToString()} issued; the app bridge covers that)"
+        status.text = "Session verified$cf"
+        onCaptured(SessionCapture(jar, header, web.settings.userAgentString, orgId))
+        dismiss()
+    }
+
+    private fun parseHeader(h: String): Map<String, String> {
+        val out = linkedMapOf<String, String>()
+        for (part in h.split(";")) {
+            val kv = part.trim().split("=", limit = 2)
+            if (kv.size == 2 && kv[0].isNotEmpty()) out[kv[0]] = kv[1]
+        }
+        return out
+    }
 
     private fun capture(): Map<String, String> {
         val cm = CookieManager.getInstance()

@@ -70,7 +70,7 @@ The owner's username is `near`: new projects/repos/packages use `near`, not a pe
 - Auth layers: RFC 8414 -> GitHub `auth_endpoints.json` -> WebView cookie sniffer -> API key. OAuth layers need a `client_id` (shipped null), so today they fall through to layers 3/4. Google blocks OAuth in WebViews and Custom Tab cookies are not shared with the WebView: Gemini should use an API key.
 - GitHub: PAT only (no device flow). Gate unlocks only when AI >= 1 provider, daemon reachable with accepted token, and PAT has push on the repo.
 - Back handling: `BackScope` registers `OnBackInvokedCallback` only while a sheet/sub-screen is open (API 33+); `onBackPressed` fallback below that.
-- CI: first compile of all Kotlin passed (Build APK green). Runtime behaviour on a device is still untested.
+- Unverified until CI: every Kotlin file (no SDK in the sandbox). `gh` auth was invalid in the sandbox, so nothing is pushed.
 
 ## 4d. Workspace UI as built (Milestone 4)
 
@@ -79,7 +79,16 @@ The owner's username is `near`: new projects/repos/packages use `near`, not a pe
 - Renders: draft = `POST /render/draft` job -> `renders/<id>_draft.mp4`; HD = push `queue/<id>.json` via Contents API -> `repository_dispatch render-hd` -> poll release `render-<id>` every 20 s (screen must stay open; "Fetch finished cloud render" resumes) -> `renders/<id>.mp4`.
 - Library: `GET /library`, thumbnails read from shared storage `assets/library/.thumbs`, forge / rebuild-thumbs / curate via jobs.
 - Reopening the gate from System uses `autoUnlock=false` so it does not bounce back.
-- CI: compiled and assembled green. UI behaviour on a device is still untested.
+- Unverified until CI: all Kotlin (29 files). Local check was brace balance + `Ui.*` symbol existence only.
+
+## 4e. Claude web session (zero API key), as built
+
+- UNOFFICIAL: uses claude.ai private endpoints with the user's own session cookie; may break or be blocked, and Anthropic's consumer terms restrict automated access outside the API. Best-effort fallback only.
+- Sign-in: layer-3 WebView sniffer, then in-WebView `fetch('/api/organizations')` to verify the session (and let Cloudflare issue `cf_clearance`) BEFORE reporting "captured". Stores the full cookie jar, WebView user agent and `orgId` (written to providers.json as claude `endpoint`).
+- Execution order in `engine/claude_web.py`: (1) Android bridge `127.0.0.1:8766/claude/complete` (hidden WebView in a foreground service = real Chromium TLS + live cookies, token `X-Stickman-Token`); (2) `curl_cffi` impersonate chrome with the synced cookie header + UA (`POST /config/sessions`, memory only); never raw urllib/requests to claude.ai.
+- Failover (`llm.call_json`): 401/403 -> 30 min cooldown + `needs_refresh:claude` flag; 429 -> Retry-After cooldown; bridge/curl_cffi unavailable -> 2 min soft cooldown. Order comes from providers.json `failover_order` (claude, gemini, chatgpt). `/health` returns `ai_status` per provider and `claude_bridge`.
+- App: `MainWorkspaceView` banner "Refresh Session" appears while `ai_status.claude == needs_refresh` (polled every 30 s); one tap reopens the sniffer, re-saves, restarts the bridge service, pushes the session.
+- An API key, if present, still wins over the web session for Claude.
 
 ## 6. Milestone checklist
 
@@ -87,5 +96,5 @@ Milestones run sequentially; after each one, verify, summarize, and WAIT for the
 
 - [x] M1 (built + verified, awaiting user confirmation) Foundation, CI/CD, bootstrap, seed library (CLAUDE.md, workflows, auth_endpoints.json, setup_termux.sh, requirements.txt, schemas.py, 14-category seed assets + library_index.json)
 - [x] M2 (built; verified in sandbox, awaiting Termux run + user confirmation) Autonomous Python engine (server, scout, forensics, director, curator, forge, audit, tts_expressive, audio_master, render_cairo) + `forge.py --rebuild-thumbs` + py_compile + pytest
-- [x] M3 (CI green: compiles and assembles debug APK, see 4c) Android Gradle setup, gate, self-healing auth, bridges (build.gradle.kts, wrapper, manifest, DirectorModels, AuthSelfHealer, WebViewSnifferDialog, ProviderFailoverPool, TokenRefreshWorker, TermuxDiagnostics, TermuxClient, GitHubApiClient, ConnectGateScreen)
-- [x] M4 (CI green on main, see 4d) Programmatic 4-tab UI + CI green (MainActivity, MainWorkspaceView, Scout/Studio/Library/System tabs, AnalysisDetailView, StoryboardEditorView) — push and `gh run watch` until APK builds
+- [x] M3 (written; NOT yet compiled: needs CI, see 4c) Android Gradle setup, gate, self-healing auth, bridges (build.gradle.kts, wrapper, manifest, DirectorModels, AuthSelfHealer, WebViewSnifferDialog, ProviderFailoverPool, TokenRefreshWorker, TermuxDiagnostics, TermuxClient, GitHubApiClient, ConnectGateScreen)
+- [x] M4 (written; NOT yet compiled; CI still pending, see 4d) Programmatic 4-tab UI + CI green (MainActivity, MainWorkspaceView, Scout/Studio/Library/System tabs, AnalysisDetailView, StoryboardEditorView) — push and `gh run watch` until APK builds

@@ -172,7 +172,7 @@ class ConnectGateScreen(
         if (ep == null || ep.webLoginUrl.isBlank()) { showKeySheet(provider); return }
         busy = "auth:$why"; render()
         WebViewSnifferDialog(activity, ep,
-            onCaptured = { cookies, ua -> onAuthResult(healer.saveSession(provider, cookies, ua), provider) },
+            onCaptured = { cap -> onAuthResult(healer.saveSession(provider, cap.cookies, cap.userAgent, cap.orgId), provider) },
             onFallbackToKey = { showKeySheet(provider) }).show()
     }
 

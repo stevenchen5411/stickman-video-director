@@ -9,6 +9,8 @@ import android.widget.FrameLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.near.stickmandirector.auth.SecureStore
+import com.near.stickmandirector.bridge.BridgeService
 import com.near.stickmandirector.gate.ConnectGateScreen
 import com.near.stickmandirector.gate.TermuxDiagnostics
 import com.near.stickmandirector.ui.BackScope
@@ -63,6 +65,14 @@ class MainActivity : Activity() {
         root.removeAllViews()
         val w = MainWorkspaceView(this, back) { showGate(autoUnlock = false) }
         workspace = w
+        // Claude web-session users need the loopback bridge alive for the Termux engine.
+        if (SecureStore.get(this).loadCred("claude")?.cookies?.isNotEmpty() == true) {
+            BridgeService.start(this)
+            if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 4102)
+            }
+        }
         root.addView(w.view, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     }
 

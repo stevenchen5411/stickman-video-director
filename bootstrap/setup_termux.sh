@@ -79,6 +79,8 @@ fi
 say "Installing Python dependencies"
 python3 -m pip install --upgrade pip >/dev/null 2>&1 || true
 python3 -m pip install -r "$REPO_DIR/engine/requirements.txt" || warn "Some Python packages failed to install"
+# Optional: browser-grade TLS for the claude.ai web-session fallback when the Android bridge is not running.
+python3 -m pip install curl_cffi || warn "curl_cffi not installed; the Claude web session will rely on the Android app bridge only"
 python3 -m pip install "git+https://github.com/JuneYaooo/rea-video" || warn "rea-video not installed; forensics will fall back to ffmpeg scene detection"
 
 # --- 6. Sync seed library into shared storage (never overwrite user edits) ---

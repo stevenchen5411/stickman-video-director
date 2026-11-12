@@ -21,6 +21,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+import claude_web
 import common
 import llm
 import schemas
@@ -140,7 +141,8 @@ def health(request: Request) -> Dict[str, Any]:
              "youtube_transcript_api": common.have_module("youtube_transcript_api")}
     return {"status": "ok" if all(flags.values()) else "degraded", "version": VERSION, "flags": flags,
             "optional": extra, "ai_providers": llm.available(), "home": str(common.home()),
-            "auth": {"required": bool(_token()), "ok": _token_ok(request)}}
+            "auth": {"required": bool(_token()), "ok": _token_ok(request)},
+            "ai_status": llm.status(), "claude_bridge": claude_web.bridge_up(0.4)}
 
 
 class KeysRequest(BaseModel):
@@ -150,7 +152,27 @@ class KeysRequest(BaseModel):
 @app.post("/config/keys")
 def config_keys(req: KeysRequest) -> Dict[str, Any]:
     """Receive decrypted provider API keys from the Android app. Held in memory only."""
-    return {"providers": llm.set_runtime_keys(req.keys)}
+    held = llm.set_runtime_keys(req.keys)
+    for n in held:
+        llm.clear_needs_refresh(n)
+    return {"providers": held}
+
+
+class SessionRequest(BaseModel):
+    provider: str = Field("claude", pattern="^claude$")
+    cookie_header: str = Field(max_length=20000)
+    user_agent: str = Field(max_length=600)
+    org_id: Optional[str] = Field(None, max_length=80)
+
+
+@app.post("/config/sessions")
+def config_sessions(req: SessionRequest) -> Dict[str, Any]:
+    """Receive the claude.ai cookie jar + WebView user agent from the app. Memory only; clears the refresh badge."""
+    if not req.cookie_header.strip():
+        raise HTTPException(422, "empty cookie header")
+    claude_web.set_session(req.cookie_header, req.user_agent, req.org_id)
+    llm.clear_needs_refresh("claude")
+    return {"ok": True, "bridge_up": claude_web.bridge_up()}
 
 
 @app.post("/pipeline/auto")

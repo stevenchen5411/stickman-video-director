@@ -67,6 +67,17 @@ class TermuxDiagnostics(private val ctx: Context) {
             }
         }
 
+        // Claude web bridge (only relevant when the Claude provider is a web session)
+        val claude = com.near.stickmandirector.auth.SecureStore.get(ctx).loadCred("claude")
+        if (h.reachable && claude != null && claude.mode == com.near.stickmandirector.model.AuthMode.SESSION && claude.cookies.isNotEmpty()) {
+            val cs = h.aiStatus["claude"]
+            rows += when {
+                cs == "needs_refresh" -> DiagRow("claude", "Claude web session", DiagState.FAIL, "Rejected (401/403). Use Refresh Session; work is failing over to the next provider.")
+                h.claudeBridgeUp -> DiagRow("claude", "Claude web session", DiagState.OK, "Bridge running (app Chromium). State: ${cs ?: "ok"}")
+                else -> DiagRow("claude", "Claude web session", DiagState.WARN, "App bridge is not running; the engine falls back to curl_cffi if installed. Open the app to start the bridge.")
+            }
+        }
+
         // 4. wake-lock / battery
         val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
         val exempt = runCatching { pm.isIgnoringBatteryOptimizations(Defaults.TERMUX_PKG) }.getOrDefault(false)
