@@ -11,13 +11,25 @@ android {
         applicationId = "com.near.stickmandirector"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.3.0"
+        versionCode = 2
+        versionName = "0.3.1"
     }
 
+    signingConfigs {
+            create("near") {
+                storeFile = rootProject.file("near.keystore")
+                storePassword = "REDACTED"
+                keyAlias = "near"
+                keyPassword = "REDACTED"
+                storeType = "pkcs12"
+            }
+        }
+
     buildTypes {
+        getByName("debug") { signingConfig = signingConfigs.getByName("near") }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("near")
         }
     }
 
