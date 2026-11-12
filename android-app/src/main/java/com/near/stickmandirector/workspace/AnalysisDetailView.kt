@@ -43,6 +43,8 @@ class AnalysisDetailView(private val env: Env, private val id: String) {
 
     private fun build() {
         val p = pkg ?: return
+        // `status` outlives rebuilds: detach it from the previous card first, or addView() throws "child already has a parent".
+        (status.parent as? android.view.ViewGroup)?.removeView(status)
         content.removeAllViews()
         val vp = p.getJSONObject("viral_packaging")
         val qa = p.getJSONObject("quality_audit")
@@ -115,7 +117,11 @@ class AnalysisDetailView(private val env: Env, private val id: String) {
                     w.watch(job,
                         onUpdate = { j -> say("Rendering: ${JobWatcher.lastLog(j, 1)}") },
                         onDone = { j ->
-                            if (j.optString("status") == "done") { say("Draft ready", Ui.OK); build(); play(draftFile(), "Draft") }
+                            if (j.optString("status") == "done") {
+                                runCatching { build() }
+                                say("Draft ready", Ui.OK)
+                                runCatching { play(draftFile(), "Draft") }.onFailure { env.toast("Could not open the player: ${it.message}") }
+                            }
                             else say("Render failed: ${j.optString("error")}", Ui.BAD)
                         },
                         onError = { m -> say("Lost contact with the daemon: $m", Ui.BAD) })
