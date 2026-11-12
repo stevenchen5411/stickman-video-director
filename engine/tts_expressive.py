@@ -425,6 +425,8 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
         meta = json.loads(mp.read_text(encoding="utf-8"))
         if meta.get("key") != key:
             return False
+        if meta.get("placeholder") and not placeholder:
+            return False  # a robotic fallback from an earlier quota failure: retry the real voice
         info[sc.id] = {"wav": str(adir / f"{sc.id}.wav"), **meta}
         return True
 
