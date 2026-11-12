@@ -54,8 +54,9 @@ class TermuxDiagnostics(private val ctx: Context) {
             "Not reachable (${h.error ?: "no answer"}). Fix will send start_daemon.sh to Termux; if setup was never run, use 'Copy 1-Line Setup'.", installed && granted)
 
         // 2b. token
-        if (h.reachable) rows += if (h.authOk) DiagRow("token", "Daemon token", DiagState.OK, "Accepted")
-        else DiagRow("token", "Daemon token", DiagState.FAIL, "Daemon was started with a different token. Fix restarts it.", true)
+        if (h.reachable) rows += if (h.authOk && h.authRequired) DiagRow("token", "Daemon token", DiagState.OK, "Accepted")
+        else DiagRow("token", "Daemon token", DiagState.FAIL,
+            if (h.authRequired) "Daemon was started with a different token. Fix restarts it." else "Daemon is running without a token. Fix restarts it with this app's token.", true)
 
         // 3. health flags
         if (h.reachable) {

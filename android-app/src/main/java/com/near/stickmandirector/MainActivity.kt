@@ -62,6 +62,7 @@ class MainActivity : Activity() {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 4102)
         }
         // Let the bridge come up, then re-run the gate diagnostics so "Claude web session" flips to OK without a manual refresh.
+        com.near.stickmandirector.auth.Bg.io { runCatching { com.near.stickmandirector.bridge.TermuxClient(this).ensureAwake() } }   // daemon must hold our token to reach the bridge
         root.postDelayed({ gate?.refreshAll() }, 2500)
         root.postDelayed({ gate?.refreshAll() }, 7000)
     }

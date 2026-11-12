@@ -106,14 +106,15 @@ class TermuxClient(private val ctx: Context) {
      */
     fun ensureAwake(timeoutMs: Long = 20_000): HealthReport {
         var h = health()
-        if (h.reachable && h.authOk) return h
-        val w = wake(restart = h.reachable && !h.authOk)
+        // A daemon running WITHOUT a token (authRequired=false) is a mismatch too: it cannot talk to our token-protected bridge.
+        if (h.reachable && h.authRequired && h.authOk) return h
+        val w = wake(restart = h.reachable)
         if (!w.sent) return h.copy(error = w.message)
         val end = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < end) {
             Thread.sleep(1000)
             h = health()
-            if (h.reachable && h.authOk) { pushKeysBlocking(); return h }
+            if (h.reachable && h.authRequired && h.authOk) { pushKeysBlocking(); return h }
         }
         return h
     }
