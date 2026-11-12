@@ -140,9 +140,12 @@ def download_source(video_id: str, dest_dir: Path) -> Path:
     if existing:
         return existing[0]
     import yt_dlp
-    opts = {"quiet": True, "no_warnings": True, "outtmpl": str(dest_dir / "source.%(ext)s"),
-            "format": "best[height<=480][ext=mp4]/best[height<=480]/worst",
-            "merge_output_format": "mp4", "noplaylist": True}
+    opts = {"quiet": True, "no_warnings": True, "noprogress": True, "outtmpl": str(dest_dir / "source.%(ext)s"),
+            # YouTube now serves 480p as separate video/audio streams: merge them with ffmpeg.
+            "format": "bv*[height<=480][ext=mp4]+ba[ext=m4a]/bv*[height<=480]+ba/b[height<=480]/b",
+            "merge_output_format": "mp4", "noplaylist": True,
+            # Without a JS runtime YouTube only exposes audio formats; Termux ships node.
+            "js_runtimes": {"node": {}}}
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True) or {}
     files = [p for p in dest_dir.glob("source.*") if p.suffix not in (".part", ".ytdl")]

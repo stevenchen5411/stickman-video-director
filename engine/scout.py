@@ -21,7 +21,7 @@ MIN_MULTIPLIER = 3.0
 def _ydl(opts: Dict[str, Any]):
     import yt_dlp  # lazy: not installed in CI sandboxes
     base = {"quiet": True, "no_warnings": True, "skip_download": True, "ignoreerrors": True,
-            "extract_flat": "in_playlist"}
+            "extract_flat": "in_playlist", "js_runtimes": {"node": {}}}
     base.update(opts)
     return yt_dlp.YoutubeDL(base)
 
