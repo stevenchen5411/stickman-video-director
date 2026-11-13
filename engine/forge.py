@@ -367,6 +367,7 @@ def forge_asset(category: str, aid: str, brief: str = "", scope: str = "global",
             entry["default_voice_id"] = asset.get("default_voice_id")
 
     entry["file_path"] = rel
+    entry.setdefault("meta", {})["review"] = "pending"
     entry["perceptual_hash"] = hashlib.sha1((lib / rel).read_bytes()).hexdigest()[:12]
     if category in THUMB_CATS:
         entry["thumb_path"] = f".thumbs/{aid}.png"

@@ -351,6 +351,39 @@ def render_draft(req: RenderRequest) -> Dict[str, str]:
         progress=lambda p: say(f"render {int(p * 100)}%") if int(p * 100) % 10 == 0 else None))}
 
 
+@app.get("/library/review")
+def library_review() -> Dict[str, Any]:
+    import review
+    return {"pending": review.list_pending()}
+
+
+@app.post("/library/review/plan")
+def library_review_plan(body: Dict[str, Any]) -> Dict[str, Any]:
+    import review
+    try:
+        return review.approve_plan(list(body.get("ids", [])), body.get("repo_index") or {})
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@app.post("/library/review/approved")
+def library_review_approved(body: Dict[str, Any]) -> Dict[str, Any]:
+    import review
+    try:
+        return review.mark_approved(list(body.get("ids", [])))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@app.post("/library/review/reject")
+def library_review_reject(body: Dict[str, Any]) -> Dict[str, Any]:
+    import review
+    try:
+        return review.reject(list(body.get("ids", [])))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
 @app.get("/library")
 def library() -> Dict[str, Any]:
     return schemas.load_library_index(common.library_dir()).model_dump(mode="json")

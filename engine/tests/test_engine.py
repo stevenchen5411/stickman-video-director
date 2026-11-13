@@ -716,3 +716,26 @@ def test_render_draft_with_stickman_speech_stays_locked_to_audio(tmp_path, monke
     assert mp4.stat().st_size > 1000 and abs(common.probe_duration(mp4) - res["duration_sec"]) < 0.3
     tl = json.loads((tmp_path / "out" / ".work" / "pkg_20261112_snooze01" / "timeline.json").read_text())
     assert tl["scenes"][0]["say"]["end"] <= tl["scenes"][0]["speech_sec"] + 1e-6
+
+
+def test_forge_review_flow(lib_copy, tmp_path):
+    import review
+    import schemas
+    forge.forge_asset("14_sfx", "review_tick", "tick", use_ai=False, library=lib_copy)
+    pend = review.list_pending(lib_copy)
+    assert [p["id"] for p in pend] == ["review_tick"]
+    repo_idx = {"schema_version": "x", "updated_at_utc": "2020-01-01T00:00:00+00:00", "assets": []}
+    plan = review.approve_plan(["review_tick"], repo_idx, lib_copy)
+    assert plan["files"] and plan["index"]["assets"][0]["id"] == "review_tick"
+    assert "review" not in plan["index"]["assets"][0]["meta"]
+    q = tmp_path / "q"
+    q.mkdir()
+    (q / "pkg_a.json").write_text('{"x": "review_tick"}')
+    assert review.reject(["review_tick"], lib_copy, q)["blocked"]
+    (q / "pkg_a.json").unlink()
+    assert review.reject(["review_tick"], lib_copy, q)["rejected"] == ["review_tick"]
+    assert not review.list_pending(lib_copy)
+    assert schemas.load_library_index(lib_copy).get("review_tick") is None
+    forge.forge_asset("14_sfx", "review_tick2", "tick", use_ai=False, library=lib_copy)
+    review.mark_approved(["review_tick2"], lib_copy)
+    assert not review.list_pending(lib_copy)
