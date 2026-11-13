@@ -137,6 +137,10 @@ def split_text(text: str, limit: int = MAX_CHARS) -> List[str]:
     return chunks
 
 
+def plausible_max_sec(text: str) -> float:
+    return 6.0 + 0.2 * len(text)
+
+
 def _wav(data: bytes) -> Tuple[np.ndarray, int]:
     with wave.open(io.BytesIO(data)) as w:
         sr, n, ch = w.getframerate(), w.getnframes(), w.getnchannels()
@@ -176,6 +180,14 @@ def synthesize(text: str, voice: str = "Charon", style: str = "", character: str
     gap = np.zeros(int(0.18 * 24000), dtype=np.float32)
     for chunk in split_text(text):                   # sequential, never parallel
         x, sr = _wav(_post_tts(chunk, v, st))
+        for _ in range(2):                           # Canvas sometimes returns runaway audio: retry up to twice
+            if len(x) / sr <= plausible_max_sec(chunk):
+                break
+            log.warning("canvas audio too long (%.0fs for %d chars): regenerating", len(x) / sr, len(chunk))
+            x, sr = _wav(_post_tts(chunk, v, st))
+        else:
+            if len(x) / sr > plausible_max_sec(chunk):
+                raise RuntimeError(f"canvas returned implausible audio length {len(x) / sr:.0f}s")
         parts += [x, gap]
     if not parts:
         raise ValueError("empty text")

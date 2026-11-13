@@ -88,3 +88,15 @@ def test_status_down(monkeypatch):
     monkeypatch.setattr(c, "CANVAS_URL", "http://127.0.0.1:9")
     s = c.status()
     assert s["up"] is False and "enabled" in s
+
+
+def test_runaway_audio_is_regenerated(monkeypatch):
+    calls = []
+
+    def fake(text, voice, style):
+        calls.append(1)
+        return make_wav(300.0) if len(calls) == 1 else make_wav(2.0)
+
+    monkeypatch.setattr(c, "_post_tts", fake)
+    x, sr = c.synthesize("Halo semuanya.", "Kore", "sedih")
+    assert len(calls) == 2 and len(x) / sr < 5

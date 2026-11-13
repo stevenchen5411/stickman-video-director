@@ -79,15 +79,21 @@ class TermuxClient(private val ctx: Context) {
         true
     } catch (t: Throwable) { false }
 
-    /** Push the claude.ai web session (live WebView cookie jar if present) so Termux can call it via curl_cffi. */
+    /** Push the claude.ai and gemini.google.com web sessions (live WebView cookie jar if present) so Termux can call them. */
     fun pushSessionBlocking(): Boolean {
-        val c = store.loadCred("claude") ?: return false
+        val claude = pushSessionFor("claude", "https://claude.ai")
+        val gemini = pushSessionFor("gemini", "https://gemini.google.com")
+        return claude || gemini
+    }
+
+    private fun pushSessionFor(provider: String, url: String): Boolean {
+        val c = store.loadCred(provider) ?: return false
         if (c.mode != AuthMode.SESSION || c.cookies.isEmpty()) return false
-        val live = runCatching { android.webkit.CookieManager.getInstance().getCookie("https://claude.ai") }.getOrNull()
+        val live = runCatching { android.webkit.CookieManager.getInstance().getCookie(url) }.getOrNull()
         val header = if (!live.isNullOrBlank()) live else c.cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
         return try {
-            post("/config/sessions", JSONObject().put("provider", "claude").put("cookie_header", header)
-                .put("user_agent", c.userAgent ?: "").put("org_id", c.orgId ?: JSONObject.NULL)); true
+            post("/config/sessions", JSONObject().put("provider", provider).put("cookie_header", header)
+                .put("user_agent", c.userAgent ?: "").put("org_id", if (provider == "claude") (c.orgId ?: JSONObject.NULL) else JSONObject.NULL)); true
         } catch (t: Throwable) { false }
     }
 

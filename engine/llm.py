@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import claude_web
+import gemini_web
 import common
 import schemas
 
@@ -88,7 +89,7 @@ def available(prov: Optional[schemas.ProvidersFile] = None) -> List[str]:
 
 def _usable(name: str, prov: Optional[schemas.ProvidersFile] = None) -> bool:
     """API key, or (claude only) a synced claude.ai web session."""
-    return bool(api_key(name, prov)) or (name == "claude" and claude_web.has_session())
+    return bool(api_key(name, prov)) or (name == "claude" and claude_web.has_session()) or (name == "gemini" and gemini_web.has_session())
 
 
 # ------------------------------------------------------------------ cooldown state
@@ -151,7 +152,7 @@ def status(prov: Optional[schemas.ProvidersFile] = None) -> Dict[str, Dict[str, 
         else:
             state = "ok"
         out[n] = {"state": state, "cooldown_sec": left,
-                  "via": "api_key" if api_key(n, prov) else ("web_session" if n == "claude" and claude_web.has_session() else None)}
+                  "via": "api_key" if api_key(n, prov) else ("web_session" if (n == "claude" and claude_web.has_session()) or (n == "gemini" and gemini_web.has_session()) else None)}
     return out
 
 
@@ -227,10 +228,10 @@ def call_json(system: str, prompt: str, prefer: Optional[str] = None) -> Tuple[D
         key = api_key(name, prov)
         if not cfg.enabled or not _usable(name, prov) or in_cooldown(name):
             continue
-        via_web = name == "claude" and not key
+        via_web = name in ("claude", "gemini") and not key
         try:
             if via_web:
-                raw = _call_claude_web(system, prompt)
+                raw = _call_claude_web(system, prompt) if name == "claude" else gemini_web.complete(system, prompt)
             elif name == "gemini":
                 raw = _call_gemini(key, os.environ.get("STICKMAN_GEMINI_MODEL", cfg.director_model), system, prompt)
             elif name == "claude":
@@ -239,7 +240,7 @@ def call_json(system: str, prompt: str, prefer: Optional[str] = None) -> Tuple[D
                 raw = _call_chatgpt(key, os.environ.get("STICKMAN_OPENAI_MODEL", "gpt-4o"), system, prompt)
             parsed = extract_json(raw)
             if via_web:
-                clear_needs_refresh("claude")
+                clear_needs_refresh(name)
             return parsed, name
         except (AuthFailed, claude_web.WebAuthError) as af:
             log.warning("%s auth failed (%s); cooling down, hopping", name, getattr(af, "status", "?"))

@@ -25,6 +25,7 @@ import claude_web
 import common
 import llm
 import canvas_tts
+import gemini_web
 import schemas
 
 VERSION = "1.0.0"
@@ -153,7 +154,7 @@ def health(request: Request) -> Dict[str, Any]:
             "ai_status": llm.status(), "claude_bridge": claude_web.bridge_up(0.4),
             # the daemon holds secrets in memory only; the app re-sends them whenever this shows they are missing
             "canvas_tts": canvas_tts.status(),
-            "credentials": {"claude_session": claude_web.has_session(), "keys": sorted(llm.RUNTIME_KEYS)}}
+            "credentials": {"claude_session": claude_web.has_session(), "gemini_session": gemini_web.has_session(), "keys": sorted(llm.RUNTIME_KEYS)}}
 
 
 class KeysRequest(BaseModel):
@@ -170,7 +171,7 @@ def config_keys(req: KeysRequest) -> Dict[str, Any]:
 
 
 class SessionRequest(BaseModel):
-    provider: str = Field("claude", pattern="^claude$")
+    provider: str = Field("claude", pattern="^(claude|gemini)$")
     cookie_header: str = Field(max_length=20000)
     user_agent: str = Field(max_length=600)
     org_id: Optional[str] = Field(None, max_length=80)
@@ -181,6 +182,10 @@ def config_sessions(req: SessionRequest) -> Dict[str, Any]:
     """Receive the claude.ai cookie jar + WebView user agent from the app. Memory only; clears the refresh badge."""
     if not req.cookie_header.strip():
         raise HTTPException(422, "empty cookie header")
+    if req.provider == "gemini":
+        gemini_web.set_session(req.cookie_header, req.user_agent)
+        llm.clear_needs_refresh("gemini")
+        return {"ok": True, "provider": "gemini"}
     claude_web.set_session(req.cookie_header, req.user_agent, req.org_id)
     llm.clear_needs_refresh("claude")
     return {"ok": True, "bridge_up": claude_web.bridge_up()}
