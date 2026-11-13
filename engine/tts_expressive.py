@@ -138,7 +138,11 @@ def use_chatterbox() -> bool:
 
 
 def detect_lang(text: str) -> str:
-    """Chatterbox V3 has no Indonesian id: Indonesian text is sent as Malay ('ms'), the closest supported language."""
+    """'ms' means Indonesian (Chatterbox V3 has no Indonesian id). The video language is configured
+    (STICKMAN_LANGUAGE, default Indonesian), so short lines are never misread as English."""
+    cfg = os.environ.get("STICKMAN_LANGUAGE", "Indonesian").strip().lower()
+    if cfg.startswith(("indo", "bahasa", "id")):
+        return "ms"
     words = re.findall(r"[a-z]+", text.lower())
     if sum(w in _ID_WORDS for w in words) >= max(2, len(words) // 12):
         return "ms"
@@ -177,13 +181,11 @@ def chatterbox_synthesize(text: str, style: str = "", voice: str = "") -> Tuple[
     import urllib.parse
     import urllib.request
     lang = detect_lang(text)
-    cands: List[Tuple[str, str]] = []              # (endpoint, query) in order of preference
-    if lang == "ms":                               # Indonesian text: F5-TTS Indonesian first, then the Chatterbox fine-tune
-        if F5_ID_URL:
-            cands.append((F5_ID_URL, urllib.parse.urlencode({"text": text, "ref": "reporter", "arch": "F5TTS_v1_Base"})))
-        if CHATTERBOX_ID_URL:
-            cands.append((CHATTERBOX_ID_URL, urllib.parse.urlencode({"text": text})))
-    cands.append((CHATTERBOX_URL, urllib.parse.urlencode({"text": text, "lang": lang})))
+    cands: List[Tuple[str, str]] = []              # (endpoint, query)
+    if lang == "ms" and F5_ID_URL:                 # Indonesian: F5-TTS Indonesian only (no Chatterbox mixing)
+        cands.append((F5_ID_URL, urllib.parse.urlencode({"text": text, "ref": "reporter", "arch": "F5TTS_v1_Base"})))
+    else:
+        cands.append((CHATTERBOX_URL, urllib.parse.urlencode({"text": text, "lang": lang})))
     last: Optional[Exception] = None
     for base, q in cands:
         for attempt in range(2):                  # first call after idle cold-starts the GPU (can take minutes)
