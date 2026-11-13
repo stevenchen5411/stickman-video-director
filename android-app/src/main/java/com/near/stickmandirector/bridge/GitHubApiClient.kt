@@ -71,6 +71,13 @@ class GitHubApiClient(ctx: Context) {
         }
     } catch (t: Throwable) { t.message ?: "network error" }
 
+    /** Raw text of a file in the public code repo (default branch), or null. */
+    fun getRepoText(path: String): String? = try {
+        http.newCall(req("/repos/$repo/contents/$path", "application/vnd.github.raw").build()).execute().use { r ->
+            if (r.isSuccessful) r.body!!.string() else null
+        }
+    } catch (t: Throwable) { null }
+
     /** Packages go to the PRIVATE jobs repo, never the public code repo. */
     fun putJobFile(path: String, content: ByteArray, message: String): String? = putFile(path, content, message, "main", jobsRepo)
 

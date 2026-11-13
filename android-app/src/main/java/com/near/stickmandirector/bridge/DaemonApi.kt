@@ -36,4 +36,12 @@ class DaemonApi(ctx: Context) {
     fun installPack(): String =
         JSONObject(client.post("/library/install-pack", JSONObject().put("previews", true))).getString("job_id")
     fun curate(): JSONObject = JSONObject(client.post("/curate", JSONObject().put("use_ai", false)))
+
+    // ---- review of forged assets
+    fun reviewList(): List<JSONObject> = JSONObject(client.get("/library/review")).getJSONArray("pending").map { it }
+    fun reviewPlan(ids: List<String>, repoIndex: JSONObject): JSONObject =
+        JSONObject(client.post("/library/review/plan", JSONObject().put("ids", JSONArray(ids)).put("repo_index", repoIndex)))
+    fun reviewApproved(ids: List<String>) { client.post("/library/review/approved", JSONObject().put("ids", JSONArray(ids))) }
+    fun reviewReject(ids: List<String>): JSONObject =
+        JSONObject(client.post("/library/review/reject", JSONObject().put("ids", JSONArray(ids))))
 }

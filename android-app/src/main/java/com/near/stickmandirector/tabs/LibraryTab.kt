@@ -55,6 +55,7 @@ class LibraryTab(env: Env) : Tab(env) {
     private val adapter = ListAdapter<JSONObject>(emptyList()) { c, a -> cell(c, a) }
     private val chips = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; val p = Ui.dp(ctx, 12); setPadding(p, 0, p, 0) }
     private var watcher: JobWatcher? = null
+    private var reviewBtn: TextView? = null
 
     // the one thing playing right now
     private var playingId: String? = null
@@ -81,6 +82,8 @@ class LibraryTab(env: Env) : Tab(env) {
         action("Install pack") { runJob("Installing asset pack") { env.api.installPack() } }
         action("Rebuild previews") { runJob("Rebuilding previews") { env.api.rebuildThumbs() } }
         action("Curate") { curate() }
+        action("Review forged") { openReview() }
+        reviewBtn = (actions.getChildAt(actions.childCount - 1) as? TextView)
         addView(HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; addView(actions) })
         val search = Ui.input(ctx, "Search id or tag (e.g. virus, wave, chart)")
         search.addTextChangedListener(object : TextWatcher {
@@ -141,6 +144,8 @@ class LibraryTab(env: Env) : Tab(env) {
                 (q.isEmpty() || a.optString("id").contains(qu) || tagsOf(a).any { it.contains(q) || it.contains(qu) })
         }
         adapter.submit(list)
+        val pend = all.count { it.optJSONObject("meta")?.optString("review") == "pending" }
+        reviewBtn?.text = if (pend > 0) "Review forged ($pend)" else "Review forged"
         val packed = all.count { it.optJSONObject("meta")?.has("pack") == true }
         info.text = if (all.isNotEmpty() && packed == 0) "${list.size} asset(s) · tap Install pack to add the 1,500-asset starter pack"
         else "${list.size} asset(s) · tap to play · hold for details"
@@ -300,6 +305,99 @@ class LibraryTab(env: Env) : Tab(env) {
                         onError = { m -> info.text = "$label: lost contact ($m)" })
                 }
             } catch (t: Throwable) { Bg.ui { info.text = "$label failed: ${t.message}" } }
+        }
+    }
+
+    // ------------------------------------------------------------------ review of forged assets (approve -> public repo, reject -> delete)
+    private fun openReview() {
+        val root = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; val p = Ui.dp(ctx, 12); setPadding(p, p, p, p) }
+        val status = Ui.muted(ctx, "Loading...")
+        val list = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(Ui.title(ctx, "Review forged"))
+        root.addView(status, Ui.lp(top = 4, ctx = ctx))
+        val bar = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(bar, Ui.lp(top = 8, ctx = ctx))
+        root.addView(list, Ui.lp(top = 8, ctx = ctx))
+        val scroll = android.widget.ScrollView(ctx).apply { addView(root) }
+
+        fun refresh() {
+            Bg.io {
+                try {
+                    val pend = env.api.reviewList()
+                    Bg.ui {
+                        status.text = if (pend.isEmpty()) "Nothing waiting. Forged assets show up here until you approve them."
+                        else "${pend.size} waiting. Approve adds it to the shared library on GitHub; Reject deletes it from this phone."
+                        bar.removeAllViews()
+                        if (pend.size > 1) bar.addView(Ui.button(ctx, "Approve all", true) { approve(pend.map { it.optString("id") }, status, ::reloadAfter) })
+                        list.removeAllViews()
+                        for (a in pend) list.addView(reviewRow(a, status))
+                    }
+                } catch (t: Throwable) { Bg.ui { status.text = "Daemon not reachable: ${t.message}" } }
+            }
+        }
+        reviewRefresh = ::refresh
+        env.open(scroll) { reviewRefresh = null; reload() }
+        refresh()
+    }
+
+    private var reviewRefresh: (() -> Unit)? = null
+    private fun reloadAfter() { reviewRefresh?.invoke() }
+
+    private fun reviewRow(a: JSONObject, status: TextView): View {
+        val id = a.optString("id")
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL; background = Ui.rounded(ctx, Ui.CARD)
+            val p = Ui.dp(ctx, 10); setPadding(p, p, p, p)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(ctx, 8) }
+        }
+        val img = ImageView(ctx).apply { scaleType = ImageView.ScaleType.FIT_CENTER; background = Ui.rounded(ctx, Ui.CARD_ALT, 10) }
+        row.addView(img, LinearLayout.LayoutParams(-1, Ui.dp(ctx, 180)))
+        showStill(img, a)
+        row.addView(Ui.text(ctx, id, 15f, Ui.TEXT, true), Ui.lp(top = 6, ctx = ctx))
+        row.addView(Ui.muted(ctx, "${a.optString("category").substringAfter('_')} · ${a.optString("scope")} · ${tagsOf(a).joinToString(", ")}"))
+        val btns = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        btns.addView(Ui.button(ctx, "Approve", true) { approve(listOf(id), status, ::reloadAfter) },
+            LinearLayout.LayoutParams(-2, -2).apply { rightMargin = Ui.dp(ctx, 8) })
+        btns.addView(Ui.button(ctx, "Reject", false) { reject(id, status) })
+        row.addView(btns, Ui.lp(top = 8, ctx = ctx))
+        return row
+    }
+
+    private fun approve(ids: List<String>, status: TextView, done: () -> Unit) {
+        status.text = "Syncing ${ids.size} asset(s) to GitHub..."
+        Bg.io {
+            try {
+                val repoIdx = env.github.getRepoText("assets/library/library_index.json")?.let { JSONObject(it) }
+                    ?: throw IllegalStateException("cannot read the repo library index (check the GitHub token)")
+                val plan = env.api.reviewPlan(ids, repoIdx)
+                val files = plan.getJSONArray("files")
+                for (i in 0 until files.length()) {
+                    val f = files.getJSONObject(i)
+                    Bg.ui { status.text = "Uploading ${i + 1}/${files.length() + 1}: ${f.getString("path")}" }
+                    val e = env.github.putFile("assets/library/" + f.getString("path"),
+                        android.util.Base64.decode(f.getString("b64"), android.util.Base64.DEFAULT), "library: add forged ${ids.joinToString(",")}")
+                    if (e != null) throw IllegalStateException(e)
+                }
+                val e = env.github.putFile("assets/library/library_index.json", plan.getJSONObject("index").toString(2).toByteArray(),
+                    "library: index for forged ${ids.joinToString(",")}")
+                if (e != null) throw IllegalStateException(e)
+                env.api.reviewApproved(ids)
+                Bg.ui { env.toast("Approved ${ids.size}"); done() }
+            } catch (t: Throwable) { Bg.ui { status.text = "Approve failed: ${t.message}" } }
+        }
+    }
+
+    private fun reject(id: String, status: TextView) {
+        status.text = "Deleting $id..."
+        Bg.io {
+            try {
+                val r = env.api.reviewReject(listOf(id))
+                val blocked = r.optJSONObject("blocked")
+                Bg.ui {
+                    if (blocked != null && blocked.has(id)) status.text = "Can't reject $id: used by ${blocked.optJSONArray(id)?.join(", ")}"
+                    else { env.toast("Rejected $id"); reloadAfter() }
+                }
+            } catch (t: Throwable) { Bg.ui { status.text = "Reject failed: ${t.message}" } }
         }
     }
 
