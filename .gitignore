@@ -16,3 +16,7 @@ android-app/.gradle/
 local.properties
 *.apk
 .env
+
+android-app/*.keystore
+*.keystore
+*.jks

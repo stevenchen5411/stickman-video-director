@@ -44,7 +44,18 @@ jobs:
       - name: Make wrapper executable
         run: chmod +x ./gradlew
 
+      - name: Restore signing key from secrets
+        env:
+          NEAR_KEYSTORE_B64: ${{ secrets.NEAR_KEYSTORE_B64 }}
+        run: |
+          echo "$NEAR_KEYSTORE_B64" | base64 -d > near.keystore
+          echo "keystore sha256: $(sha256sum near.keystore | cut -d' ' -f1)"
+
       - name: Assemble debug APK
+        env:
+          NEAR_STORE_PASSWORD: ${{ secrets.NEAR_STORE_PASSWORD }}
+          NEAR_KEY_PASSWORD: ${{ secrets.NEAR_KEY_PASSWORD }}
+          NEAR_KEY_ALIAS: ${{ secrets.NEAR_KEY_ALIAS }}
         run: ./gradlew --no-daemon --stacktrace assembleDebug
 
       - name: Upload APK

@@ -16,14 +16,16 @@ android {
     }
 
     signingConfigs {
-            create("near") {
-                storeFile = rootProject.file("near.keystore")
-                storePassword = "REDACTED"
-                keyAlias = "near"
-                keyPassword = "REDACTED"
-                storeType = "pkcs12"
-            }
+        create("near") {
+            // Signing material comes from CI secrets (never committed): the workflow decodes
+            // NEAR_KEYSTORE_B64 to android-app/near.keystore and exports the three values below.
+            storeFile = rootProject.file("near.keystore")
+            storePassword = System.getenv("NEAR_STORE_PASSWORD")
+            keyAlias = System.getenv("NEAR_KEY_ALIAS")
+            keyPassword = System.getenv("NEAR_KEY_PASSWORD")
+            storeType = "pkcs12"
         }
+    }
 
     buildTypes {
         getByName("debug") { signingConfig = signingConfigs.getByName("near") }
