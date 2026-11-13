@@ -123,6 +123,78 @@ def read_wav(path: Path) -> Tuple[np.ndarray, int]:
     return raw, sr
 
 
+# --------------------------------------------------------------------------- Chatterbox (Modal) backend
+CHATTERBOX_URL = os.environ.get("STICKMAN_CHATTERBOX_URL",
+                                "https://n541921024--near-chatterbox-chatterbox-tts.us-east.modal.run")
+_ID_WORDS = {"yang", "dan", "di", "ini", "itu", "untuk", "dengan", "tidak", "kamu", "aku", "kita", "adalah",
+             "dari", "ke", "pada", "akan", "bisa", "jadi", "kalau", "saya", "anda", "juga", "atau", "sudah"}
+
+
+def use_chatterbox() -> bool:
+    return bool(CHATTERBOX_URL) and os.environ.get("STICKMAN_TTS", "chatterbox") == "chatterbox"
+
+
+def detect_lang(text: str) -> str:
+    """Chatterbox V3 has no Indonesian id: Indonesian text is sent as Malay ('ms'), the closest supported language."""
+    words = re.findall(r"[a-z]+", text.lower())
+    if sum(w in _ID_WORDS for w in words) >= max(2, len(words) // 12):
+        return "ms"
+    return os.environ.get("STICKMAN_TTS_LANG", "en")
+
+
+def parse_wav_bytes(data: bytes) -> Tuple[np.ndarray, int]:
+    """RIFF/WAVE (PCM16 or float32 as torchaudio writes) -> mono float32 + sample rate."""
+    import struct
+    fmt = ch = sr = bits = None
+    pos = 12
+    while pos + 8 <= len(data):
+        cid, size = data[pos:pos + 4], struct.unpack("<I", data[pos + 4:pos + 8])[0]
+        body = data[pos + 8:pos + 8 + size]
+        if cid == b"fmt ":
+            fmt, ch, sr, _, _, bits = struct.unpack("<HHIIHH", body[:16])
+            if fmt == 0xFFFE and len(body) >= 26:
+                fmt = struct.unpack("<H", body[24:26])[0]
+        elif cid == b"data":
+            if fmt == 3:
+                x = np.frombuffer(body[: len(body) // 4 * 4], dtype="<f4").astype(np.float32)
+            elif bits == 16:
+                x = np.frombuffer(body[: len(body) // 2 * 2], dtype="<i2").astype(np.float32) / 32768.0
+            else:
+                raise RuntimeError(f"unsupported wav format {fmt}/{bits}")
+            if ch and ch > 1:
+                x = x[: len(x) // ch * ch].reshape(-1, ch).mean(axis=1)
+            return x, int(sr)
+        pos += 8 + size + (size & 1)
+    raise RuntimeError("wav has no data chunk")
+
+
+def chatterbox_synthesize(text: str, style: str = "", voice: str = "") -> Tuple[np.ndarray, int]:
+    """Text -> speech through the near-chatterbox Modal endpoint (default voice; style/voice names are Gemini-only)."""
+    import time as _t
+    import urllib.parse
+    import urllib.request
+    q = urllib.parse.urlencode({"text": text, "lang": detect_lang(text)})
+    last: Optional[Exception] = None
+    for attempt in range(3):                      # first call after idle cold-starts the GPU (can take minutes)
+        try:
+            with urllib.request.urlopen(f"{CHATTERBOX_URL}?{q}", timeout=290) as r:
+                data = r.read()
+            if data[:4] != b"RIFF":
+                raise RuntimeError("chatterbox returned no audio")
+            return parse_wav_bytes(data)
+        except Exception as e:  # noqa: BLE001
+            last = e
+            log.warning("chatterbox attempt %d failed: %s", attempt + 1, str(e)[:100])
+            _t.sleep(3)
+    raise last if last else RuntimeError("chatterbox failed")
+
+
+def synth_line(client, text: str, style: str, voice: str) -> Tuple[np.ndarray, int]:
+    if use_chatterbox():
+        return chatterbox_synthesize(text, style, voice)
+    return gemini_synthesize(client, text, style, voice)
+
+
 # --------------------------------------------------------------------------- placeholder voice
 def placeholder_speech(text: str, voice: str = "Charon", min_sec: float = 0.0) -> Tuple[np.ndarray, int]:
     """Formant-synth babble whose timing follows the text (syllables + punctuation). Offline/dev only."""
@@ -399,7 +471,9 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
     adir.mkdir(parents=True, exist_ok=True)
 
     client = None
-    if placeholder is None:
+    if placeholder is None and use_chatterbox():
+        placeholder = False
+    elif placeholder is None:
         try:
             if not llm.api_key("gemini"):
                 raise RuntimeError("no Gemini API key")
@@ -408,7 +482,7 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
         except Exception as e:  # noqa: BLE001
             log.warning("Gemini TTS unavailable (%s): using PLACEHOLDER voice", str(e)[:100])
             placeholder = True
-    elif not placeholder:
+    elif not placeholder and not use_chatterbox():
         client = _client()
 
     info: Dict[str, Dict[str, Any]] = {}
@@ -427,7 +501,7 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
         info[stem] = {"wav": str(adir / f"{stem}.wav"), **meta}
 
     def cache_key(sc, voice: str, style: str) -> str:
-        return hashlib.sha1(f"{sc.narration.text}|{voice}|{style}|{sc.narration.prosody.pace_multiplier}|{placeholder}".encode()).hexdigest()[:16]
+        return hashlib.sha1(f"{sc.narration.text}|{voice}|{style}|{sc.narration.prosody.pace_multiplier}|{placeholder}|{use_chatterbox()}".encode()).hexdigest()[:16]
 
     def cached(sc, key: str, stem: Optional[str] = None) -> bool:
         stem = stem or sc.id
@@ -454,7 +528,7 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
                 finish(sc, x, sr, True, keys[sc.id])
             continue
         done_multi = False
-        if len(group) >= 2 and len(todo) == len(group) and len({s.narration.character_id for s in group}) == 2:
+        if not use_chatterbox() and len(group) >= 2 and len(todo) == len(group) and len({s.narration.character_id for s in group}) == 2:
             try:
                 names = {cid: f"Speaker{i + 1}" for i, cid in enumerate(dict.fromkeys(s.narration.character_id for s in group))}
                 turns = [{"speaker": names[s.narration.character_id], "voice": voices[s.id][0],
@@ -473,7 +547,7 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
             for sc in todo:
                 voice, base = voices[sc.id]
                 try:
-                    x, sr = gemini_synthesize(client, sc.narration.text, _style(sc, base), voice)
+                    x, sr = synth_line(client, sc.narration.text, _style(sc, base), voice)
                     finish(sc, x, sr, False, keys[sc.id])
                 except Exception as e:  # noqa: BLE001 - keep the pipeline alive; mark placeholder
                     log.warning("TTS failed for %s (%s): placeholder used", sc.id, str(e)[:120])
@@ -492,12 +566,12 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
         else:
             voice, base = say_voice_for(narr_voice), ""
         style = f"{base} {sp.acting_direction}".strip()
-        key = hashlib.sha1(f"{sp.text}|{voice}|{style}|say|{placeholder}".encode()).hexdigest()[:16]
+        key = hashlib.sha1(f"{sp.text}|{voice}|{style}|say|{placeholder}|{use_chatterbox()}".encode()).hexdigest()[:16]
         if cached(sc, key, stem):
             continue
         if not placeholder:
             try:
-                x, sr = gemini_synthesize(client, sp.text, style, voice)
+                x, sr = synth_line(client, sp.text, style, voice)
                 finish(sc, x, sr, False, key, stem, 1.0, sp.text)
                 continue
             except Exception as e:  # noqa: BLE001 - keep the pipeline alive; mark placeholder
