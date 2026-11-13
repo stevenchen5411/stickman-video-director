@@ -104,6 +104,7 @@ class MainWorkspaceView(
 
     fun select(i: Int) {
         if (i == current) return
+        tabs.getOrNull(current)?.onHide()
         current = i
         stage.removeAllViews()
         stage.addView(tabs[i].view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -112,6 +113,8 @@ class MainWorkspaceView(
     }
 
     fun onResume() { if (current >= 0 && screens.isEmpty()) tabs[current].onShow(); checkBanner() }
+
+    fun onPause() { tabs.getOrNull(current)?.onHide() }
 
     private fun pushScreen(v: View, onClosed: () -> Unit) {
         lateinit var handler: () -> Unit

@@ -99,6 +99,11 @@ class MainActivity : Activity() {
         workspace?.onResume()
     }
 
+    override fun onPause() {
+        workspace?.onPause()
+        super.onPause()
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == TermuxDiagnostics.REQ_RUN_COMMAND && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {

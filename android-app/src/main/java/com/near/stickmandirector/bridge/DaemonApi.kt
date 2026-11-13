@@ -32,5 +32,8 @@ class DaemonApi(ctx: Context) {
         JSONObject(client.post("/forge", JSONObject().put("category", category).put("id", id).put("brief", brief)))
             .getString("job_id")
     fun rebuildThumbs(): String = JSONObject(client.post("/forge/rebuild-thumbs")).getString("job_id")
+    /** Installs the bundled 1,500-asset starter pack into the active library and renders its previews (long job). */
+    fun installPack(): String =
+        JSONObject(client.post("/library/install-pack", JSONObject().put("previews", true))).getString("job_id")
     fun curate(): JSONObject = JSONObject(client.post("/curate", JSONObject().put("use_ai", false)))
 }

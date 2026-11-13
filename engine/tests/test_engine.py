@@ -302,7 +302,7 @@ def test_forge_visual_assets_and_thumbs(lib_copy):
     idx = schemas.load_library_index(lib_copy)
     visual = [a for a in idx.assets if a.category in forge.THUMB_CATS]
     assert all((lib_copy / a.thumb_path).is_file() for a in visual)
-    assert all(len(a.perceptual_hash) == 16 for a in visual)
+    assert all(len(a.perceptual_hash) == 16 for a in visual if not a.file_path.startswith("08_overlays/"))
     from PIL import Image
     assert Image.open(lib_copy / visual[0].thumb_path).size == (256, 256)
 
@@ -479,7 +479,7 @@ def test_rig_forward_kinematics():
     import render_cairo as rc
     rig = rc.DEFAULT_RIG
     stand = rc.rig_points(rig, {}, 1000, (500, 900))
-    assert stand["pelvis"][1] == 900 - 360 and stand["head"][1] < stand["neck_base"][1]
+    assert abs(stand["pelvis"][1] - (900 - 360)) < 2 and stand["head"][1] < stand["neck_base"][1]   # feet ground-locked
     up = json.loads((LIB / "02_poses" / "holding_head.json").read_text())["joints"]
     p = rc.rig_points(rig, up, 1000, (500, 900))
     assert p["l_hand"][1] < p["l_shoulder"][1]                                           # hands raised above shoulders

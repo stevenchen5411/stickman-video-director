@@ -50,10 +50,16 @@ def activity_pct(scenes: List[Dict[str, Any]]) -> float:
     return round(100.0 * sum(1 for s in scenes if is_active(s)) / len(scenes), 1)
 
 
+SAFE_REPAIR_MOTIONS = ["talk_gesture_a", "explain_hands", "talk_gesture_b", "cam_slow_push", "talk_gesture_c", "bob_talk",
+                       "head_tilt_curious", "sway_gentle", "nod_yes", "cam_drift_right", "bounce_loop", "camera_punch_in"]
+
+
 def _pools(index: schemas.LibraryIndex):
-    motions = [a.id for a in index.by_category("04_motions")
-               if a.id not in STATIC_MOTIONS and a.meta.get("kind", "") != "spring"] or \
-              [a.id for a in index.by_category("04_motions") if a.id not in STATIC_MOTIONS]
+    have = {a.id for a in index.by_category("04_motions")}
+    safe = [m for m in SAFE_REPAIR_MOTIONS if m in have]
+    motions = safe or [a.id for a in index.by_category("04_motions")
+                       if a.id not in STATIC_MOTIONS and a.meta.get("kind", "") != "spring"] or \
+        [a.id for a in index.by_category("04_motions") if a.id not in STATIC_MOTIONS]
     overlays = [a.id for a in index.by_category("08_overlays")]
     return motions, overlays
 

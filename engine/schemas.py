@@ -49,7 +49,9 @@ Category = Literal[
     "11_themes", "12_voices", "13_bgm", "14_sfx",
 ]
 
-GEMINI_VOICES = ["Charon", "Puck", "Fenrir", "Aoede", "Kore"]
+GEMINI_VOICES = ["Charon", "Puck", "Fenrir", "Aoede", "Kore", "Zephyr", "Leda", "Orus", "Callirrhoe", "Autonoe", "Enceladus",
+                 "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar", "Alnilam",
+                 "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
 
 # Post-breath pause presets (ms)
 PAUSE_FAST_HOOK_MS = 80
@@ -156,6 +158,7 @@ class LibraryAsset(_Base):
     niche_tags: List[str] = Field(default_factory=list)
     file_path: str
     thumb_path: Optional[str] = None
+    preview_path: Optional[str] = None      # animated preview (WebP) for moving assets
     default_voice_id: Optional[str] = None
     preview_audio_path: Optional[str] = None
     gemini_voice_name: Optional[str] = None
@@ -187,10 +190,12 @@ class LibraryIndex(_Base):
         return self
 
     def get(self, asset_id: str, category: Optional[str] = None) -> Optional[LibraryAsset]:
-        for a in self.assets:
-            if a.id == asset_id and (category is None or a.category == category):
-                return a
-        return None
+        key = (id(self.assets), len(self.assets))
+        if self.__dict__.get("_id_key") != key:   # O(1) lookups; rebuilt when the asset list is replaced or grows
+            self.__dict__["_id_map"] = {a.id: a for a in self.assets}
+            self.__dict__["_id_key"] = key
+        a = self.__dict__["_id_map"].get(asset_id)
+        return a if (a is not None and (category is None or a.category == category)) else None
 
     def by_category(self, category: str) -> List[LibraryAsset]:
         return [a for a in self.assets if a.category == category]

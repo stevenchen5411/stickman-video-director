@@ -83,37 +83,10 @@ def _renderer():
     return render_cairo
 
 
-def rebuild_thumbs(library: Optional[Path] = None, only_missing: bool = False) -> Dict[str, Any]:
-    lib = Path(library) if library else common.library_dir()
-    index = schemas.load_library_index(lib)
-    rc = _renderer()
-    thumbs = lib / ".thumbs"
-    thumbs.mkdir(parents=True, exist_ok=True)
-    done, failed, dupes = 0, [], []
-    for a in index.assets:
-        if a.category not in THUMB_CATS:
-            continue
-        out = thumbs / f"{a.id}.png"
-        a.thumb_path = f".thumbs/{a.id}.png"
-        if only_missing and out.is_file():
-            continue
-        try:
-            rc.render_asset_thumbnail(lib, a.model_dump(), out, THUMB_SIZE)
-            a.perceptual_hash = phash_image(out)
-            done += 1
-        except Exception as e:  # noqa: BLE001 - one bad asset must not stop the rebuild
-            failed.append({"id": a.id, "error": str(e)[:200]})
-            log.warning("thumb failed for %s: %s", a.id, e)
-    for cat in DEDUP_CATS:
-        items = index.by_category(cat)
-        for i, x in enumerate(items):
-            for y in items[i + 1:]:
-                s = hash_similarity(x.perceptual_hash, y.perceptual_hash)
-                if s >= schemas.PHASH_DEDUP_THRESHOLD:
-                    dupes.append({"a": x.id, "b": y.id, "similarity": round(s, 3)})
-    index.updated_at_utc = _now()
-    schemas.save_json(lib / "library_index.json", index)
-    return {"rendered": done, "failed": failed, "near_duplicates": dupes}
+def rebuild_thumbs(library: Optional[Path] = None, only_missing: bool = False, progress=None) -> Dict[str, Any]:
+    """Still thumbnails for every asset + animated previews for moving ones (see previews.py)."""
+    import previews
+    return previews.build_all(library, only_missing, progress=progress)
 
 
 def _now():
@@ -379,7 +352,7 @@ def forge_asset(category: str, aid: str, brief: str = "", scope: str = "global",
             thumb.parent.mkdir(parents=True, exist_ok=True)
             _renderer().render_asset_thumbnail(lib, entry, thumb, THUMB_SIZE)
             h = phash_image(thumb)
-            if category in DEDUP_CATS:
+            if category in DEDUP_CATS and not (category == "08_overlays" and rel.endswith(".json")):
                 dup = find_duplicate(index, category, h)
                 if dup:
                     for p in written + [thumb]:

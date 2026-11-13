@@ -58,6 +58,9 @@ jobs:
           pip install -r engine/requirements.txt
           pip install "git+https://github.com/JuneYaooo/rea-video" || echo "rea-video not installed (not needed for render)"
 
+      - name: Install the generated asset pack
+        run: python3 engine/assetgen/build.py --library assets/library > /dev/null
+
       - name: Render audio-first 1080p60
         run: |
           mkdir -p renders

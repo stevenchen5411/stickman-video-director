@@ -2,7 +2,7 @@
 """FastAPI daemon on 127.0.0.1:8775 (never binds to other interfaces).
 
 Endpoints: GET /health, POST /pipeline/auto, GET /jobs[/{id}], GET /queue[/{package_id}], POST /forge,
-POST /forge/rebuild-thumbs, POST /curate, POST /render/draft, GET /library.
+POST /forge/rebuild-thumbs, POST /library/install-pack, POST /curate, POST /render/draft, GET /library.
 Long work runs on a single background worker (jobs are serialized so Termux CPU/RAM is never oversubscribed).
 
 Run: python3 -m uvicorn server:app --host 127.0.0.1 --port 8775   (from engine/)  or  python3 engine/server.py
@@ -107,6 +107,10 @@ class ForgeRequest(BaseModel):
 
 class CurateRequest(BaseModel):
     use_ai: bool = False
+
+
+class PackRequest(BaseModel):
+    previews: bool = True
 
 
 class RenderRequest(BaseModel):
@@ -275,7 +279,23 @@ def forge_asset(req: ForgeRequest) -> Dict[str, str]:
 @app.post("/forge/rebuild-thumbs")
 def rebuild_thumbs() -> Dict[str, str]:
     import forge
-    return {"job_id": submit("forge.rebuild_thumbs", lambda say: forge.rebuild_thumbs())}
+    return {"job_id": submit("forge.rebuild_thumbs", lambda say: forge.rebuild_thumbs(progress=say))}
+
+
+@app.post("/library/install-pack")
+def install_pack(req: PackRequest) -> Dict[str, str]:
+    """Install/refresh the bundled asset pack (engine/assetgen) into the active library, then render previews."""
+    def run(say):
+        import previews
+        from assetgen import build as pack
+        lib = common.library_dir()
+        say("installing asset pack")
+        res = pack.build(lib, progress=say)
+        say(f"pack ready: {res.get('pack_assets')} assets")
+        if req.previews:
+            res["previews"] = previews.build_all(lib, only_missing=True, progress=say)
+        return res
+    return {"job_id": submit("library.install_pack", run)}
 
 
 @app.post("/curate")

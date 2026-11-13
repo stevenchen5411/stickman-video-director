@@ -88,6 +88,8 @@ python3 -m pip install "git+https://github.com/JuneYaooo/rea-video" || warn "rea
 # --- 6. Sync seed library into shared storage (never overwrite user edits) ---
 say "Syncing asset library to shared storage"
 cp -a -n "$REPO_DIR/assets/library/." "$SHARED/assets/library/" 2>/dev/null || warn "library sync incomplete"
+say "Installing the generated asset pack (1,500 assets; previews are built later from the app: Library > Rebuild previews)"
+python3 "$REPO_DIR/engine/assetgen/build.py" --library "$SHARED/assets/library" > /dev/null || warn "asset pack not installed"
 
 # --- 7. Daemon launcher + wake-lock -----------------------------------------
 say "Installing daemon launcher"

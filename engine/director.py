@@ -84,8 +84,60 @@ def longest_shared_run(a: str, b: str) -> int:
     return best
 
 
-def build_catalog(index: schemas.LibraryIndex) -> Dict[str, List[Dict[str, Any]]]:
-    return {c: [{"id": a.id, "tags": a.niche_tags[:4]} for a in index.by_category(c)] for c in schemas.CATEGORIES}
+# words in a niche/title -> library tags (keeps the catalog's most relevant groups first)
+NICHE_WORDS = {
+    "health": "health medical medicine doctor cancer tumor disease virus vaccine body hospital nurse pharmacy drug pill",
+    "science": "science biology chemistry physics experiment lab research dna cell atom",
+    "space": "space planet moon mars star galaxy rocket nasa astronaut universe",
+    "finance": "finance money invest investing stock stocks bank banking wealth rich budget savings debt economy",
+    "crypto": "crypto bitcoin btc ethereum eth blockchain defi web3 nft token altcoin",
+    "trading": "trading trader chart charts candle forex",
+    "tech": "tech technology computer software app internet phone gadget",
+    "ai": "ai artificial intelligence robot chatgpt machine learning",
+    "business": "business startup company ceo entrepreneur marketing sales office career job work",
+    "education": "education school study student learn learning teacher exam math history",
+    "history": "history ancient war empire king egypt rome medieval",
+    "food": "food cooking recipe eat eating diet kitchen chef nutrition",
+    "fitness": "fitness gym workout exercise sport sports running muscle",
+    "psychology": "psychology mind brain habit habits behavior stoicism stoic motivation productivity focus",
+    "mental_health": "mental anxiety stress depression sleep calm meditation",
+    "nature": "nature animal animals ocean forest weather climate environment",
+    "law": "law legal court crime justice",
+    "travel": "travel trip country city flight",
+    "gaming": "game gaming games gamer",
+    "music": "music song singer band",
+    "mystery": "mystery secret detective unsolved spooky horror",
+    "comedy": "funny comedy joke meme",
+}
+_BIG_CATS = {"02_poses", "03_expressions", "04_motions", "05_scenes", "06_props", "07_widgets", "08_overlays", "09_transitions", "14_sfx"}
+
+
+def niche_tags(*texts: str) -> set:
+    words = set(re.findall(r"[a-z0-9]+", " ".join(t or "" for t in texts).lower().replace("_", " ")))
+    out = {"general"} | (words & set(NICHE_WORDS))
+    for tag, vocab in NICHE_WORDS.items():
+        if words & set(vocab.split()):
+            out.add(tag)
+    return out
+
+
+def build_catalog(index: schemas.LibraryIndex, niche: str = "", title: str = "") -> Dict[str, Any]:
+    """Compact catalog for the director prompt. Big categories are {topic_tag: [ids]} (relevant topics first);
+    small ones list ids with tags. Every id in the library is included."""
+    want = niche_tags(niche, title)
+    out: Dict[str, Any] = {}
+    for c in schemas.CATEGORIES:
+        items = index.by_category(c)
+        if c in _BIG_CATS:
+            groups: Dict[str, List[str]] = {}
+            for a in items:
+                key = next((t for t in a.niche_tags if t in want), a.niche_tags[0] if a.niche_tags else "general")
+                groups.setdefault(key, []).append(a.id)
+            out[c] = dict(sorted(groups.items(), key=lambda kv: (0 if kv[0] in want - {"general"} else 1 if kv[0] == "general" else 2, kv[0])))
+        else:
+            ranked = sorted(items, key=lambda a: 0 if set(a.niche_tags) & want else 1)
+            out[c] = [{"id": a.id, "tags": a.niche_tags[:3]} for a in ranked]
+    return out
 
 
 # --------------------------------------------------------------------------- planning
@@ -98,7 +150,7 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
         "niche": niche,
         "source_title": fx.get("title", ""),
         "source_shots": shots,
-        "library_catalog": build_catalog(index),
+        "library_catalog": build_catalog(index, niche, fx.get("title", "")),
         "rules": [
             "Use ONLY ids from library_catalog for character_id, theme/caption/bgm and voices. For other asset types you "
             f"may propose at most {MAX_NEW_IDS} NEW snake_case ids in total when nothing fits.",
@@ -111,7 +163,17 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
             "The narrator keeps telling the story; the stickman reacts to it. placement='before' for a hook question "
             "that sets up the narration, 'after' for a reaction to it. Leave `speech` out of the other scenes.",
             "Every scene needs `shot_id` copied from source_shots (the shot whose pacing/beat it echoes).",
-            "Make most scenes move: set motion_id and/or overlay_id/widget_id.",
+            "Make most scenes move: set motion_id and/or overlay_id/widget_id. Big catalog categories are grouped as "
+            "{topic: [ids]}; any id in any group is valid.",
+            "Visuals must ILLUSTRATE the narration literally: prop_id = the object being talked about (a syringe for an "
+            "injection, a virus for an infection, a chart for growth); scene_id = where it happens (hospital_room, "
+            "science_lab, trading_floor...) and stays the same until the story moves; widget_id for numbers/steps/lists "
+            "(its title/values come from your fallback title/values).",
+            "Give the stickman life: vary pose_id and expression_id with the emotion of each line; use gesture motions "
+            "(talk_gesture_a/b/c, explain_hands, point_jab, nod_yes, wave_right...) while he explains and camera motions "
+            "(cam_punch_small, cam_slow_push...) only for emphasis.",
+            "Use transition_in_id only when the place or topic changes (e.g. slide_left, iris_circle, dip_to_black); "
+            "leave it empty for a hard cut between beats in the same place.",
             "Exactly one scene has climax=true; set dramatic_beat=true on punchline scenes.",
             "emphasis_words[].word must appear in text; trigger_sfx must be an id from 14_sfx.",
             extra_warning,

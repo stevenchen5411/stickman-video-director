@@ -95,8 +95,8 @@ def eval_track(keys: List[List[Any]], t: float, spring: Dict[str, float]) -> flo
 
 
 def eval_motion(motion: Optional[Dict[str, Any]], t: float) -> Dict[str, float]:
-    st = {"camera.scale": 1.0, "camera.x": 0.0, "camera.y": 0.0, "character.x": 0.0, "character.y": 0.0,
-          "torso.scale_y": 1.0, "object.scale": 1.0}
+    st = {"camera.scale": 1.0, "camera.x": 0.0, "camera.y": 0.0, "camera.rot": 0.0, "character.x": 0.0,
+          "character.y": 0.0, "character.rot": 0.0, "character.scale": 1.0, "torso.scale_y": 1.0, "object.scale": 1.0}
     if not motion:
         return st
     dur = max(1e-3, float(motion.get("duration_sec", 1.0)))
@@ -184,7 +184,7 @@ def draw_surface(ctx, surf, x: float, y: float, w: float, h: float, alpha: float
     sw, sh = surf.get_width(), surf.get_height()
     ctx.save()
     ctx.translate(x, y)
-    ctx.scale(w / sw, h / sh)
+    safe_scale(ctx, w / sw, h / sh)
     ctx.set_source_surface(surf, 0, 0)
     ctx.paint_with_alpha(alpha)
     ctx.restore()
@@ -205,7 +205,7 @@ def set_font(ctx, name: str, size: float) -> None:
     bold = "bold" in name.lower()
     family = re.sub(r"\s*bold\s*", " ", name, flags=re.I).strip() or "sans-serif"
     ctx.select_font_face(family, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD if bold else cairo.FONT_WEIGHT_NORMAL)
-    ctx.set_font_size(size)
+    ctx.set_font_size(max(0.5, float(size)))
 
 
 def text_width(ctx, s: str) -> float:
@@ -261,6 +261,12 @@ def _up(angle_deg: float) -> Tuple[float, float]:
     return (math.sin(a), -math.cos(a))          # 0 deg = straight up; +angle leans right
 
 
+def safe_scale(ctx, sx: float, sy: Optional[float] = None) -> None:
+    """ctx.scale that never makes the matrix singular (a 0 scale raises in pycairo)."""
+    sy = sx if sy is None else sy
+    ctx.scale(math.copysign(max(abs(sx), 1e-3), sx or 1.0), math.copysign(max(abs(sy), 1e-3), sy or 1.0))
+
+
 DEFAULT_POSE = {"torso_lean": 0, "neck": 0, "l_shoulder": 8, "l_elbow": 5, "r_shoulder": -8, "r_elbow": -5,
                 "l_hip": 4, "l_knee": 0, "r_hip": -4, "r_knee": 0}
 DEFAULT_RIG = {"head_radius": 0.085, "neck": 0.03, "torso": 0.26, "upper_arm": 0.14, "forearm": 0.13,
@@ -268,7 +274,7 @@ DEFAULT_RIG = {"head_radius": 0.085, "neck": 0.03, "torso": 0.26, "upper_arm": 0
 
 
 def rig_points(rig: Dict[str, float], pose: Dict[str, float], U: float, anchor: Tuple[float, float],
-               torso_scale: float = 1.0) -> Dict[str, Tuple[float, float]]:
+               torso_scale: float = 1.0, ground: bool = True) -> Dict[str, Tuple[float, float]]:
     j = {**DEFAULT_POSE, **pose}
     ax, ay = anchor
     pel = (ax, ay - (rig["thigh"] + rig["shin"]) * U)
@@ -288,10 +294,14 @@ def rig_points(rig: Dict[str, float], pose: Dict[str, float], U: float, anchor: 
         hip = (pel[0] + s * 0.02 * U * -1, pel[1])
         d3 = _dir(j[f"{side}_hip"])
         knee = (hip[0] + d3[0] * rig["thigh"] * U, hip[1] + d3[1] * rig["thigh"] * U)
-        d4 = _dir(j[f"{side}_hip"] - s * abs(j[f"{side}_knee"]))
+        d4 = _dir(j[f"{side}_hip"] - s * j[f"{side}_knee"])   # signed: negative bends the other way
         foot = (knee[0] + d4[0] * rig["shin"] * U, knee[1] + d4[1] * rig["shin"] * U)
         pts.update({f"{side}_shoulder": sh, f"{side}_elbow": elbow, f"{side}_hand": hand,
                     f"{side}_hip": hip, f"{side}_knee": knee, f"{side}_foot": foot})
+    if ground:  # bent legs (squat, sit, lunge) keep the feet on the floor instead of floating
+        dy = ay - max(pts["l_foot"][1], pts["r_foot"][1])
+        if abs(dy) > 1e-6:
+            pts = {k: (v[0], v[1] + dy) for k, v in pts.items()}
     return pts
 
 
@@ -305,7 +315,7 @@ def draw_mouth(ctx, cx, cy, r, shape: Any, theme, color) -> None:
         else:
             ctx.save()
             ctx.translate(cx, cy)
-            ctx.scale(max(0.1, w / 2), max(0.1, o))
+            safe_scale(ctx, max(0.1, w / 2), max(0.1, o))
             ctx.arc(0, 0, 1, 0, 2 * math.pi)
             ctx.restore()
             setc(ctx, color, theme)
@@ -316,7 +326,7 @@ def draw_mouth(ctx, cx, cy, r, shape: Any, theme, color) -> None:
         ctx.curve_to(cx, cy + r * 0.05, cx + r * 0.2, cy, cx + r * 0.4, cy - r * 0.18)
         ctx.stroke()
     elif shape == "open_small":
-        ctx.save(); ctx.translate(cx, cy); ctx.scale(r * 0.14, r * 0.2); ctx.arc(0, 0, 1, 0, 2 * math.pi); ctx.restore()
+        ctx.save(); ctx.translate(cx, cy); safe_scale(ctx, r * 0.14, r * 0.2); ctx.arc(0, 0, 1, 0, 2 * math.pi); ctx.restore()
         ctx.fill()
     elif shape == "wobble":
         ctx.move_to(cx - r * 0.35, cy)
@@ -330,43 +340,9 @@ def draw_mouth(ctx, cx, cy, r, shape: Any, theme, color) -> None:
         line(ctx, cx - r * 0.28, cy, cx + r * 0.28, cy, max(1.5, r * 0.09), color, theme)
 
 
-def draw_face(ctx, cx, cy, r, expr: Dict[str, Any], mouth: Any, look_t: float, theme, color) -> None:
-    eyes = expr.get("eyes", {})
-    brows = expr.get("brows", {})
-    open_ = clamp(eyes.get("open", 0.8), 0.05, 1.0)
-    pup = eyes.get("pupil_scale", 1.0)
-    for side, sx in (("l", -1), ("r", 1)):
-        ex, ey = cx + sx * r * 0.38, cy - r * 0.08
-        er = r * 0.2
-        ctx.save()
-        ctx.translate(ex, ey)
-        ctx.scale(1.0, open_)
-        circle(ctx, 0, 0, er, theme, fill="#ffffff", stroke=color, sw=max(1.2, r * 0.06))
-        ctx.restore()
-        circle(ctx, ex + math.sin(look_t) * er * 0.15, ey, er * 0.5 * pup, theme, fill="#0f172a")
-        ang = math.radians(brows.get(f"{side}_angle", 0)) * -sx
-        bx0, bx1 = ex - er * 1.1, ex + er * 1.1
-        by = ey - er * 1.6 - brows.get("raise", 0.0) * r
-        line(ctx, bx0, by + math.sin(ang) * er * 1.1, bx1, by - math.sin(ang) * er * 1.1, max(1.5, r * 0.08), color, theme)
-    draw_mouth(ctx, cx, cy + r * 0.45, r, mouth, theme, color)
-
-
-def draw_accessory(ctx, acc: Dict[str, Any], pts, rig, U, theme, head_r) -> None:
-    kind, col = acc.get("type"), acc.get("color", "#64748b")
-    hx, hy = pts["head"]
-    tx, ty = pts["neck_base"]
-    px, py = pts["pelvis"]
-    if kind in ("hoodie", "labcoat", "tank"):
-        line(ctx, tx, ty + 0.01 * U, px, py, rig["line_width"] * U * (5 if kind != "tank" else 3.5), col, theme)
-    if kind == "hoodie":
-        ctx.new_path(); ctx.arc(tx, ty, head_r * 0.95, math.pi * 0.1, math.pi * 0.9); setc(ctx, col, theme)
-        ctx.set_line_width(rig["line_width"] * U * 2.4); ctx.stroke()
-    if kind == "cap":
-        ctx.new_path(); ctx.arc(hx, hy, head_r * 1.02, math.pi * 1.05, math.pi * 1.95); ctx.close_path(); setc(ctx, col, theme); ctx.fill()
-    if kind == "scarf":
-        line(ctx, tx - head_r * 0.7, ty, tx + head_r * 0.7, ty, rig["line_width"] * U * 3, col, theme)
-    if acc.get("headband"):
-        line(ctx, hx - head_r, hy - head_r * 0.45, hx + head_r, hy - head_r * 0.45, rig["line_width"] * U * 1.8, "#f8fafc", theme)
+def draw_face(ctx, cx, cy, r, expr: Dict[str, Any], mouth: Any, look_t: float, theme, color, skin: str = "#0f172a") -> None:
+    """Eyes (round/happy/x/heart/star/wink/... + automatic blinking), brows, extras and mouth (see render_fx)."""
+    render_fx.draw_face_ext(ctx, cx, cy, r, expr, mouth, look_t, theme, color, skin)
 
 
 def draw_character(ctx, char: Dict[str, Any], pose: Dict[str, Any], expr: Dict[str, Any], mouth: Any, theme,
@@ -374,24 +350,33 @@ def draw_character(ctx, char: Dict[str, Any], pose: Dict[str, Any], expr: Dict[s
     rig = {**DEFAULT_RIG, **char.get("rig", {})}
     cols = char.get("colors", {})
     line_c, fill_c, accent = cols.get("line", "#f1f5f9"), cols.get("fill", "#0f172a"), cols.get("accent", "#22d3ee")
-    pts = rig_points(rig, pose.get("joints", {}), U, anchor, torso_scale)
+    joints = {**DEFAULT_POSE, **(pose.get("joints", {}) or {})}
+    pts = rig_points(rig, joints, U, anchor, torso_scale, ground=not pose.get("airborne", False))
     lw = max(2.0, rig["line_width"] * U)
     head_r = rig["head_radius"] * U
+    accs = render_fx.accessory_list(char)
     ctx.save()
-    draw_accessory(ctx, char.get("accessory", {}), pts, rig, U, theme, head_r)
-    for a, b in (("neck_base", "pelvis"), ("l_shoulder", "l_elbow"), ("l_elbow", "l_hand"), ("r_shoulder", "r_elbow"),
-                 ("r_elbow", "r_hand"), ("l_hip", "l_knee"), ("l_knee", "l_foot"), ("r_hip", "r_knee"), ("r_knee", "r_foot")):
+    ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+    render_fx.draw_body_accessories(ctx, accs, pts, rig, U, theme, head_r, line_c, t)
+    bones = (("neck_base", "pelvis"), ("l_shoulder", "l_elbow"), ("l_elbow", "l_hand"), ("r_shoulder", "r_elbow"),
+             ("r_elbow", "r_hand"), ("l_hip", "l_knee"), ("l_knee", "l_foot"), ("r_hip", "r_knee"), ("r_knee", "r_foot"))
+    halo = cols.get("outline", "#0f172a")
+    for a, b in bones:   # soft dark under-stroke keeps light limbs readable on bright backdrops
+        line(ctx, *pts[a], *pts[b], lw * 1.9, halo, theme, 0.45)
+    for a, b in bones:
         line(ctx, *pts[a], *pts[b], lw, line_c, theme)
     for k in ("l_hand", "r_hand"):
         circle(ctx, *pts[k], rig["hand_radius"] * U, theme, fill=line_c)
     for k in ("l_foot", "r_foot"):
         circle(ctx, *pts[k], rig["hand_radius"] * U * 0.9, theme, fill=accent)
     circle(ctx, *pts["head"], head_r, theme, fill=fill_c, stroke=line_c, sw=lw)
-    draw_face(ctx, pts["head"][0], pts["head"][1], head_r, expr, mouth, t, theme, line_c)
-    if char.get("accessory", {}).get("glasses"):
-        for sx in (-1, 1):
-            circle(ctx, pts["head"][0] + sx * head_r * 0.38, pts["head"][1] - head_r * 0.08, head_r * 0.3, theme,
-                   stroke=accent, sw=max(1.5, lw * 0.5))
+    head_angle = joints["torso_lean"] + joints["neck"]
+    ctx.save()
+    ctx.translate(*pts["head"])
+    ctx.rotate(math.radians(head_angle))
+    draw_face(ctx, 0.0, 0.0, head_r, expr, mouth, t, theme, line_c, fill_c)
+    ctx.restore()
+    render_fx.draw_head_accessories(ctx, accs, pts["head"], head_r, head_angle, theme, line_c, t)
     ctx.restore()
     pts["_head_r"] = head_r  # type: ignore[assignment]
     return pts  # type: ignore[return-value]
@@ -451,6 +436,9 @@ def draw_background(ctx, assets: Assets, scene_id: Optional[str], W: int, H: int
                 draw_prims(ctx, sj.get("layers", {}).get(layer, []), W, H, theme)
                 ctx.restore()
         elif assets.is_svg(scene_id, "05_scenes"):
+            meta_anchor = (assets.entry(scene_id, "05_scenes").meta or {}).get("character_anchor")
+            if isinstance(meta_anchor, (list, tuple)) and len(meta_anchor) == 2:
+                anchor = (float(meta_anchor[0]), float(meta_anchor[1]))
             surf = assets.svg(scene_id, "05_scenes", W, H)
             if surf:
                 s = max(W / surf.get_width(), H / surf.get_height())
@@ -474,7 +462,7 @@ def draw_callout(ctx, x, y, w, h, title: str, subtitle: Optional[str], theme, t:
     p = ease("expo_out", t / 0.35)
     ctx.save()
     ctx.translate(x + w / 2, y + h / 2)
-    ctx.scale(0.85 + 0.15 * p, 0.85 + 0.15 * p)
+    safe_scale(ctx, 0.85 + 0.15 * p, 0.85 + 0.15 * p)
     draw_card(ctx, -w / 2, -h / 2, w, h, theme, 0.95 * p)
     fs = min(h * 0.3, w / max(6, len(title)) * 1.7)
     set_font(ctx, "DejaVu Sans Bold", fs)
@@ -538,7 +526,7 @@ def draw_widget(ctx, wj: Dict[str, Any], x, y, w, h, theme, t: float) -> None:
             set_font(ctx, "DejaVu Sans Bold", h / n * 0.34)
             label = f"{s.get('label', '')} {s.get('value', '')}"
             draw_text(ctx, label, x + (w - text_width(ctx, label)) / 2, by + h / n * 0.62, theme, theme.get("bg"), alpha=p)
-    else:
+    elif not render_fx.draw_widget_ext(ctx, wj, x, y, w, h, theme, t):
         raise ValueError(f"unknown widget type {kind}")
 
 
@@ -568,15 +556,35 @@ def draw_overlay(ctx, assets: Assets, oid: Optional[str], W: int, H: int, theme,
                 px = head[0] + (i - 1) * head_r * 1.2
                 py = head[1] - head_r * 1.5 - u * head_r * 0.8 + math.sin(t * 6 + i) * mo.get("bob", 0.01) * H
                 draw_text(ctx, oj.get("text", "?"), px, py, theme, oj.get("color", "theme.highlight"), alpha=1 - u * 0.7)
+        else:
+            render_fx.draw_overlay_ext(ctx, oj, W, H, theme, t, head, head_r, assets)
+        return
+    entry = assets.entry(oid, "08_overlays")
+    fullscreen = "speed_lines" in oid or bool(entry and entry.meta.get("placement") == "fullscreen")
+    if not fullscreen:  # a badge beside the head instead of a giant centred burst that hides the character
+        size = int(min(W, H) * float((entry.meta.get("size") if entry else None) or 0.26))
+        surf = assets.svg(oid, "08_overlays", size, size)
+        if surf:
+            pop = clamp(spring_step(t, 320, 15), 0, 1.3)
+            cx = min(max(head[0] + head_r * 1.3 + size * 0.4, size * 0.55), W - size * 0.55)
+            cy = max(head[1] - head_r * 1.2 - size * 0.2 + math.sin(t * 3) * size * 0.03, size * 0.55)
+            ctx.save()
+            ctx.translate(cx, cy)
+            safe_scale(ctx, max(0.01, pop), max(0.01, pop))
+            ctx.rotate(math.sin(t * 2.5) * 0.08)
+            sw, sh = surf.get_width(), surf.get_height()
+            draw_surface(ctx, surf, -sw / 2, -sh / 2, sw, sh)
+            ctx.restore()
         return
     surf = assets.svg(oid, "08_overlays", W, H)
     if surf:
+
         pop = min(1.0, spring_step(t, 300, 16))
         ctx.save()
         ctx.translate(W / 2, H / 2)
         if "speed_lines" in oid:
             ctx.rotate(t * 0.35)
-        ctx.scale(max(0.2, pop), max(0.2, pop))
+        safe_scale(ctx, max(0.2, pop), max(0.2, pop))
         sw, sh = surf.get_width(), surf.get_height()
         sc = max(W / sw, H / sh) * (1.1 if "speed_lines" in oid else 0.5)
         draw_surface(ctx, surf, -sw * sc / 2, -sh * sc / 2, sw * sc, sh * sc, 0.8 * min(1, t / 0.08))
@@ -607,7 +615,7 @@ def draw_with_transition(ctx, tr: Optional[Dict[str, Any]], t: float, W: int, H:
         s = tr.get("from_scale", 1.0) + (tr.get("to_scale", 1.6) - tr.get("from_scale", 1.0)) * (1 - u)
         ctx.save()
         ctx.translate(W / 2, H / 2)
-        ctx.scale(s, s)
+        safe_scale(ctx, s, s)
         ctx.translate(-W / 2, -H / 2)
         draw_fn()
         ctx.restore()
@@ -626,6 +634,8 @@ def draw_with_transition(ctx, tr: Optional[Dict[str, Any]], t: float, W: int, H:
         ctx.clip()
         draw_fn()
         ctx.restore()
+    elif render_fx.draw_transition_ext(ctx, tr, kind, u, t, W, H, draw_fn):
+        pass
     else:  # fade
         ctx.push_group()
         draw_fn()
@@ -672,7 +682,16 @@ def draw_captions(ctx, style: Dict[str, Any], words: List[Dict[str, Any]], t: fl
         wd = text_width(ctx, s)
         ctx.save()
         ctx.translate(x + wd / 2, y)
-        ctx.scale(pop, pop)
+        safe_scale(ctx, pop, pop)
+        box = act.get("box")
+        if active and isinstance(box, dict):
+            rrect(ctx, -wd / 2 - size * 0.18, -size * 0.92, wd + size * 0.36, size * 1.22, size * float(box.get("radius", 0.25)))
+            setc(ctx, box.get("color", "theme.accent"), theme, float(box.get("opacity", 1.0)))
+            ctx.fill()
+        shadow = style.get("shadow")
+        if isinstance(shadow, dict):
+            draw_text(ctx, s, -wd / 2 + size * float(shadow.get("dx", 0.06)), size * float(shadow.get("dy", 0.08)), theme,
+                      shadow.get("color", "#000000"), alpha=float(shadow.get("opacity", 0.6)))
         draw_text(ctx, s, -wd / 2, 0, theme, act.get("color", "#fff") if active else style.get("inactive_color", "#fff"),
                   stroke.get("color") if stroke else None, (stroke.get("width_ratio", 0.01) * min(W, H) * 1.4) if stroke else 0)
         ctx.restore()
@@ -728,7 +747,7 @@ def draw_speech_bubble(ctx, say: Dict[str, Any], t: float, head: Tuple[float, fl
     bob = 2.0 * math.sin(t * 3.2)
     ctx.save()
     ctx.translate(tip[0], tip[1] + bob)
-    ctx.scale(max(0.01, p), max(0.01, p))
+    safe_scale(ctx, max(0.01, p), max(0.01, p))
     ctx.translate(-tip[0], -tip[1])
     ctx.push_group()
     # tail first, then body, so the outline merges
@@ -798,9 +817,28 @@ class SceneCtx:
             if self.words and self.words[0]["start"] > self.say["start"]:  # narration follows his line
                 b = min(b, self.words[0]["start"] - 0.05)
             self.cap_hidden = (a, b)
+        self.prev_joints: Optional[Dict[str, float]] = None   # set by build_scene_ctxs: pose springs from here
 
 
-def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, face_right: bool) -> None:
+def scene_joints(s: "SceneCtx", t: float, ms: Dict[str, float], speaking: bool) -> Dict[str, float]:
+    """The pose actually drawn at scene time t: springs in from the previous scene's pose, breathes, sways,
+    nods while talking, plus any `pose.<joint>` gesture tracks from the scene's motion."""
+    target = {**DEFAULT_POSE, **(s.pose.get("joints") or {})}
+    prev = {**DEFAULT_POSE, **(s.prev_joints or {})}
+    p = spring_step(t, 170, 15) if prev != target else 1.0
+    j = {k: prev.get(k, 0.0) + (float(v) - prev.get(k, 0.0)) * p for k, v in target.items()}
+    j["l_shoulder"] += 2.0 * math.sin(t * 1.9)
+    j["r_shoulder"] -= 2.0 * math.sin(t * 1.9 + 0.7)
+    j["neck"] += 1.5 * math.sin(t * 1.3)
+    if speaking:
+        j["neck"] += 4.0 * math.sin(t * 7.5)
+    for k, v in ms.items():
+        if k.startswith("pose."):
+            j[k[5:]] = j.get(k[5:], 0.0) + v
+    return j
+
+
+def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, face_right: bool, obj_scale: float = 1.0) -> None:
     va, theme, a = s.sc.visual_aid, s.theme, s.assets
     fb = va.fallback_visual_aid
     drew = False
@@ -808,7 +846,7 @@ def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, face_right: bool
         try:
             wj = a.json(va.widget_id, "07_widgets")
             if wj:
-                draw_widget(ctx, wj, W * 0.07, H * 0.07, W * 0.86, H * 0.24, theme, t)
+                draw_widget(ctx, render_fx.widget_with_story(wj, fb), W * 0.07, H * 0.07, W * 0.86, H * 0.24, theme, t)
                 drew = True
         except Exception as e:  # noqa: BLE001
             log.warning("widget %s failed: %s", va.widget_id, e)
@@ -821,8 +859,9 @@ def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, face_right: bool
                 px = W * (0.08 if face_right else 0.58)
                 py = H * 0.38
                 ctx.save()
-                ctx.translate(px + box / 2, py + box / 2)
-                ctx.scale(max(0.01, p), max(0.01, p))
+                ctx.translate(px + box / 2, py + box / 2 + math.sin(t * 2.2) * H * 0.006)   # gentle float
+                ctx.rotate(math.sin(t * 1.7) * 0.035)
+                safe_scale(ctx, max(0.01, p * obj_scale), max(0.01, p * obj_scale))
                 draw_surface(ctx, surf, -box / 2, -box / 2, box, box, clamp(t / 0.1))
                 ctx.restore()
                 drew = True
@@ -844,18 +883,20 @@ def draw_scene(ctx, s: SceneCtx, W: int, H: int, t: float) -> None:
         ctx.save()
         cs = ms["camera.scale"]
         ctx.translate(W / 2 + ms["camera.x"] * W, H / 2 + ms["camera.y"] * H)
-        ctx.scale(cs, cs)
+        safe_scale(ctx, cs, cs)
+        if ms["camera.rot"]:
+            ctx.rotate(math.radians(ms["camera.rot"]))
         ctx.translate(-W / 2, -H / 2)
         ax, ay = draw_background(ctx, s.assets, s.sc.environment.scene_id, W, H, theme, ms["camera.x"])
         face_right = ax < W * 0.55
         presence = say_presence(s.say, t)
         if presence > 0.01:  # the prop/card steps back while the stickman talks, so the bubble reads cleanly
             ctx.push_group()
-            draw_visual_aid(ctx, s, W, H, t, face_right)
+            draw_visual_aid(ctx, s, W, H, t, face_right, ms["object.scale"])
             ctx.pop_group_to_source()
             ctx.paint_with_alpha(1.0 - 0.85 * presence)
         else:
-            draw_visual_aid(ctx, s, W, H, t, face_right)
+            draw_visual_aid(ctx, s, W, H, t, face_right, ms["object.scale"])
         U = 0.44 * H
         rest = s.expr.get("mouth_rest", "flat")
         speaking = bool(s.say) and s.say["start"] - 0.03 <= t <= s.say["end"] + 0.05
@@ -866,12 +907,24 @@ def draw_scene(ctx, s: SceneCtx, W: int, H: int, t: float) -> None:
         else:
             mouth = rest
         breath = 1.0 + 0.012 * math.sin(t * 2.6) + (0.02 * math.sin(t * 9.0) if speaking else 0.0)
-        pts = draw_character(ctx, s.char, s.pose, (s.say_expr if (speaking and s.say_expr) else s.expr), mouth, theme, U,
-                             (ax + ms["character.x"] * W, ay + ms["character.y"] * H),
+        cx, cy = ax + ms["character.x"] * W, ay + ms["character.y"] * H
+        rot, csc = ms["character.rot"], ms["character.scale"]
+        ctx.save()
+        ctx.translate(cx, cy)
+        ctx.rotate(math.radians(rot))
+        safe_scale(ctx, csc, csc)
+        ctx.translate(-cx, -cy)
+        pts = draw_character(ctx, s.char, {"joints": scene_joints(s, t, ms, speaking), "airborne": s.pose.get("airborne")},
+                             (s.say_expr if (speaking and s.say_expr) else s.expr), mouth, theme, U, (cx, cy),
                              ms["torso.scale_y"] * breath, t)
-        draw_overlay(ctx, s.assets, s.sc.visual_aid.overlay_id, W, H, theme, t, pts["head"], pts["_head_r"])  # type: ignore[arg-type]
+        ctx.restore()
+        hx, hy = pts["head"][0] - cx, pts["head"][1] - cy  # type: ignore[index]
+        cr, sr = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+        head = (cx + (hx * cr - hy * sr) * csc, cy + (hx * sr + hy * cr) * csc)
+        head_r = pts["_head_r"] * csc  # type: ignore[operator]
+        draw_overlay(ctx, s.assets, s.sc.visual_aid.overlay_id, W, H, theme, t, head, head_r)
         if s.say:
-            draw_speech_bubble(ctx, s.say, t, pts["head"], pts["_head_r"], W, H, theme)  # type: ignore[arg-type]
+            draw_speech_bubble(ctx, s.say, t, head, head_r, W, H, theme)
         ctx.restore()
 
     draw_with_transition(ctx, s.trans, t, W, H, content)
@@ -914,7 +967,10 @@ def surface_to_jpg(surface, W: int, H: int, path: Path, quality: int = 92) -> No
 def build_scene_ctxs(pkg: schemas.AnalysisPackage, timeline: Dict[str, Any], assets: Assets) -> List[SceneCtx]:
     theme = {**DEFAULT_THEME, **((assets.json(pkg.render_config.theme_id, "11_themes") or {}).get("palette", {}))}
     caption = assets.json(pkg.render_config.caption_style_id, "10_caption_styles")
-    return [SceneCtx(pkg, sc, tl, assets, theme, caption) for sc, tl in zip(pkg.scenes, timeline["scenes"])]
+    ctxs = [SceneCtx(pkg, sc, tl, assets, theme, caption) for sc, tl in zip(pkg.scenes, timeline["scenes"])]
+    for prev, cur in zip(ctxs, ctxs[1:]):
+        cur.prev_joints = prev.pose.get("joints") or {}
+    return ctxs
 
 
 def ffmpeg_cmd(W: int, H: int, fps: int, master: Path, out: Path, total_sec: float, mode: str) -> List[str]:
@@ -1013,11 +1069,12 @@ def render_package(package_path: Path, mode: str, out_dir: Path, placeholder_tts
 
 
 # =========================================================================== library thumbnails
-def render_asset_thumbnail(lib: Path, entry: Dict[str, Any], out_png: Path, size: int = 256) -> None:
-    """Render a 256x256 preview for any visual library asset (called by forge.py)."""
+def render_asset_thumbnail(lib: Path, entry: Dict[str, Any], out_png: Path, size: int = 256, assets: Optional["Assets"] = None) -> None:
+    """Render a 256x256 preview for any visual library asset (forge.py / previews.py; pass `assets` to reuse a loaded index)."""
     lib = Path(lib)
-    index = schemas.load_library_index(lib)
-    assets = Assets(lib, (size, size))
+    if assets is None:
+        assets = Assets(lib, (size, size))
+    index = assets.index
     cat, aid = entry["category"], entry["id"]
     theme = dict(DEFAULT_THEME)
     surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
@@ -1121,6 +1178,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(json.dumps(res, indent=2))
     return 0
 
+
+import render_fx  # noqa: E402  (extensions; imported last because it reuses the primitives above)
 
 if __name__ == "__main__":
     sys.exit(main())

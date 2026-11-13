@@ -11,10 +11,12 @@ import android.widget.LinearLayout
 class BottomSheet(private val ctx: Context, private val host: FrameLayout, private val back: BackScope) {
     private var root: FrameLayout? = null
     private val closer: () -> Unit = { dismiss() }
+    private var onDismiss: (() -> Unit)? = null
     val isShowing: Boolean get() = root != null
 
-    fun show(content: View) {
+    fun show(content: View, onDismiss: (() -> Unit)? = null) {
         if (root != null) dismiss()
+        this.onDismiss = onDismiss
         val scrim = FrameLayout(ctx).apply {
             setBackgroundColor(0x99000000.toInt())
             isClickable = true
@@ -39,5 +41,6 @@ class BottomSheet(private val ctx: Context, private val host: FrameLayout, priva
         root = null
         host.removeView(r)
         back.remove(closer)
+        onDismiss?.let { cb -> onDismiss = null; cb() }
     }
 }

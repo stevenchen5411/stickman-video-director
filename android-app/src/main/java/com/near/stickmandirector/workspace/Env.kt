@@ -26,9 +26,10 @@ class Env(
     fun toast(s: String) = Toast.makeText(activity, s, Toast.LENGTH_SHORT).show()
 }
 
-/** One bottom-nav tab. [onShow] is called each time the tab becomes visible. */
+/** One bottom-nav tab. [onShow] is called each time the tab becomes visible, [onHide] when it is left or the app pauses. */
 abstract class Tab(protected val env: Env) {
     abstract val title: String
     abstract val view: View
     open fun onShow() {}
+    open fun onHide() {}
 }
