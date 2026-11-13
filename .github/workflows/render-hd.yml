@@ -25,6 +25,11 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       PACKAGE_PATH: ${{ github.event.client_payload.package_path || inputs.package_path }}
       GH_TOKEN: ${{ github.token }}
+      STICKMAN_CHATTERBOX_URL: ${{ secrets.STICKMAN_CHATTERBOX_URL }}
+      STICKMAN_CHATTERBOX_ID_URL: ${{ secrets.STICKMAN_CHATTERBOX_ID_URL }}
+      STICKMAN_F5_ID_URL: ${{ secrets.STICKMAN_F5_ID_URL }}
+      MODAL_PROXY_KEY: ${{ secrets.MODAL_PROXY_KEY }}
+      MODAL_PROXY_SECRET: ${{ secrets.MODAL_PROXY_SECRET }}
     steps:
       - uses: actions/checkout@v4
 

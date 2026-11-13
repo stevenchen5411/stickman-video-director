@@ -125,11 +125,28 @@ def read_wav(path: Path) -> Tuple[np.ndarray, int]:
 
 
 # --------------------------------------------------------------------------- Chatterbox (Modal) backend
-CHATTERBOX_URL = os.environ.get("STICKMAN_CHATTERBOX_URL",
-                                "https://n541921024--near-chatterbox-chatterbox-tts.us-east.modal.run")
-CHATTERBOX_ID_URL = os.environ.get("STICKMAN_CHATTERBOX_ID_URL",
-                                   "https://n541921024--near-chatterbox-id-chatterboxid-tts.us-east.modal.run")
-F5_ID_URL = os.environ.get("STICKMAN_F5_ID_URL", "https://n541921024--near-f5-id-f5indo-tts-api.us-east.modal.run")
+def _modal_cfg() -> dict:
+    """Modal endpoint URLs and proxy token: env first, then ~/.stickman/modal_tts.json (never committed)."""
+    import json
+    import pathlib
+    p = pathlib.Path(os.environ.get("STICKMAN_MODAL_TTS_CONFIG", str(pathlib.Path.home() / ".stickman" / "modal_tts.json")))
+    try:
+        return json.loads(p.read_text())
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+_MC = _modal_cfg()
+CHATTERBOX_URL = os.environ.get("STICKMAN_CHATTERBOX_URL", _MC.get("chatterbox_url", ""))
+CHATTERBOX_ID_URL = os.environ.get("STICKMAN_CHATTERBOX_ID_URL", _MC.get("chatterbox_id_url", ""))
+F5_ID_URL = os.environ.get("STICKMAN_F5_ID_URL", _MC.get("f5_id_url", ""))
+
+
+def _modal_headers() -> dict:
+    """Modal proxy-auth headers; the endpoints reject requests without them."""
+    k = os.environ.get("MODAL_PROXY_KEY") or _MC.get("key", "")
+    sec = os.environ.get("MODAL_PROXY_SECRET") or _MC.get("secret", "")
+    return {"Modal-Key": k, "Modal-Secret": sec} if k and sec else {}
 _ID_WORDS = {"yang", "dan", "di", "ini", "itu", "untuk", "dengan", "tidak", "kamu", "aku", "kita", "adalah",
              "dari", "ke", "pada", "akan", "bisa", "jadi", "kalau", "saya", "anda", "juga", "atau", "sudah"}
 
@@ -191,7 +208,7 @@ def chatterbox_synthesize(text: str, style: str = "", voice: str = "") -> Tuple[
     for base, q in cands:
         for attempt in range(2):                  # first call after idle cold-starts the GPU (can take minutes)
             try:
-                with urllib.request.urlopen(f"{base}?{q}", timeout=290) as r:
+                with urllib.request.urlopen(urllib.request.Request(f"{base}?{q}", headers=_modal_headers()), timeout=290) as r:
                     data = r.read()
                 if data[:4] != b"RIFF":
                     raise RuntimeError("TTS endpoint returned no audio")
