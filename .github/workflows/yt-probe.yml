@@ -1,0 +1,42 @@
+name: YouTube probe
+
+# One-off check: does YouTube answer yt-dlp, the transcript API and a download from a GitHub Actions IP?
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q yt-dlp youtube-transcript-api
+      - name: metadata (search + channel + video)
+        continue-on-error: true
+        run: |
+          set +e
+          echo "== video metadata"; yt-dlp --skip-download --print "%(id)s | %(title)s | %(view_count)s" "https://www.youtube.com/watch?v=Cg_GW7yhq20" 2>&1 | tail -5
+          echo "== search"; yt-dlp --flat-playlist --print "%(id)s | %(title)s" "ytsearch3:stoicism" 2>&1 | tail -5
+          echo "== channel"; yt-dlp --flat-playlist --playlist-end 3 --print "%(id)s | %(title)s" "https://www.youtube.com/@TED/videos" 2>&1 | tail -5
+      - name: transcript
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          from youtube_transcript_api import YouTubeTranscriptApi
+          try:
+              api = YouTubeTranscriptApi()
+              t = api.fetch("Cg_GW7yhq20")
+              print("transcript OK, snippets:", len(t))
+          except Exception as e:
+              print("transcript FAIL:", type(e).__name__, str(e)[:300])
+          PY
+      - name: download (360p)
+        continue-on-error: true
+        run: |
+          yt-dlp -f "best[height<=360]" -o probe.%(ext)s "https://www.youtube.com/watch?v=Cg_GW7yhq20" 2>&1 | tail -8
+          ls -la probe.* 2>&1 || echo "download FAIL: no file"
