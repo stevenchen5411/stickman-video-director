@@ -128,6 +128,7 @@ CHATTERBOX_URL = os.environ.get("STICKMAN_CHATTERBOX_URL",
                                 "https://n541921024--near-chatterbox-chatterbox-tts.us-east.modal.run")
 CHATTERBOX_ID_URL = os.environ.get("STICKMAN_CHATTERBOX_ID_URL",
                                    "https://n541921024--near-chatterbox-id-chatterboxid-tts.us-east.modal.run")
+F5_ID_URL = os.environ.get("STICKMAN_F5_ID_URL", "https://n541921024--near-f5-id-f5indo-tts-api.us-east.modal.run")
 _ID_WORDS = {"yang", "dan", "di", "ini", "itu", "untuk", "dengan", "tidak", "kamu", "aku", "kita", "adalah",
              "dari", "ke", "pada", "akan", "bisa", "jadi", "kalau", "saya", "anda", "juga", "atau", "sudah"}
 
@@ -176,22 +177,26 @@ def chatterbox_synthesize(text: str, style: str = "", voice: str = "") -> Tuple[
     import urllib.parse
     import urllib.request
     lang = detect_lang(text)
-    if lang == "ms" and CHATTERBOX_ID_URL:          # Indonesian text -> the Indonesian fine-tune
-        base, q = CHATTERBOX_ID_URL, urllib.parse.urlencode({"text": text})
-    else:
-        base, q = CHATTERBOX_URL, urllib.parse.urlencode({"text": text, "lang": lang})
+    cands: List[Tuple[str, str]] = []              # (endpoint, query) in order of preference
+    if lang == "ms":                               # Indonesian text: F5-TTS Indonesian first, then the Chatterbox fine-tune
+        if F5_ID_URL:
+            cands.append((F5_ID_URL, urllib.parse.urlencode({"text": text, "ref": "reporter", "arch": "F5TTS_v1_Base"})))
+        if CHATTERBOX_ID_URL:
+            cands.append((CHATTERBOX_ID_URL, urllib.parse.urlencode({"text": text})))
+    cands.append((CHATTERBOX_URL, urllib.parse.urlencode({"text": text, "lang": lang})))
     last: Optional[Exception] = None
-    for attempt in range(3):                      # first call after idle cold-starts the GPU (can take minutes)
-        try:
-            with urllib.request.urlopen(f"{base}?{q}", timeout=290) as r:
-                data = r.read()
-            if data[:4] != b"RIFF":
-                raise RuntimeError("chatterbox returned no audio")
-            return parse_wav_bytes(data)
-        except Exception as e:  # noqa: BLE001
-            last = e
-            log.warning("chatterbox attempt %d failed: %s", attempt + 1, str(e)[:100])
-            _t.sleep(3)
+    for base, q in cands:
+        for attempt in range(2):                  # first call after idle cold-starts the GPU (can take minutes)
+            try:
+                with urllib.request.urlopen(f"{base}?{q}", timeout=290) as r:
+                    data = r.read()
+                if data[:4] != b"RIFF":
+                    raise RuntimeError("TTS endpoint returned no audio")
+                return parse_wav_bytes(data)
+            except Exception as e:  # noqa: BLE001
+                last = e
+                log.warning("tts %s attempt %d failed: %s", base.split("//")[1][:40], attempt + 1, str(e)[:100])
+                _t.sleep(3)
     raise last if last else RuntimeError("chatterbox failed")
 
 
