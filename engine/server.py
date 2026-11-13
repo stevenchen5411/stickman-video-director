@@ -197,7 +197,8 @@ def selftest_tts(req: TtsProbe) -> Dict[str, Any]:
     import tts_expressive as tts
     t0 = time.time()
     try:
-        x, sr = tts.gemini_synthesize(tts._client(), req.text, req.style, req.voice, req.model or None)
+        x, sr = (tts.chatterbox_synthesize(req.text, req.style, req.voice) if tts.use_chatterbox()
+                 else tts.gemini_synthesize(tts._client(), req.text, req.style, req.voice, req.model or None))
         return {"ok": True, "seconds": round(time.time() - t0, 1), "audio_sec": round(len(x) / sr, 2),
                 "exhausted": sorted(tts._EXHAUSTED)}
     except Exception as e:  # noqa: BLE001

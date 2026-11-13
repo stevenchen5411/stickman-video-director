@@ -11,6 +11,7 @@ CLI: python3 engine/director.py VIDEO_ID [--niche N] [--multiplier X] [--channel
 """
 from __future__ import annotations
 
+import os
 import argparse
 import json
 import re
@@ -35,6 +36,18 @@ SYSTEM_PROMPT = (
     "You are the director of faceless stickman explainer videos. You remix a proven viral video's STRUCTURE "
     "into a fresh script in your own words. Reply with one JSON object only."
 )
+
+
+def narration_language() -> str:
+    """Language of everything spoken or shown on screen (env STICKMAN_LANGUAGE, default Indonesian)."""
+    return os.environ.get("STICKMAN_LANGUAGE", "Indonesian").strip() or "Indonesian"
+
+
+def system_prompt() -> str:
+    lang = narration_language()
+    return (SYSTEM_PROMPT + f" LANGUAGE: write every spoken or on-screen word (scene text, speech, cover_text_hook, "
+            f"title_variants, widget titles, subtitles and data labels) in natural, conversational {lang}, even if the "
+            "source video is in another language. Keep every id, JSON key and enum value exactly as specified.")
 
 
 # --------------------------------------------------------------------------- helpers
@@ -206,7 +219,7 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
                 "dramatic_beat": False, "climax": False}],
         },
     })
-    plan, provider = llm.call_json(SYSTEM_PROMPT, prompt)
+    plan, provider = llm.call_json(system_prompt(), prompt)
     if not isinstance(plan.get("scenes"), list) or not plan["scenes"]:
         raise ValueError("plan has no scenes")
     return plan, provider
