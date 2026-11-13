@@ -29,8 +29,11 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r engine/requirements.txt pytest
 
-      - name: Build the asset pack (the regression set runs against the full library)
+      - name: Tests on the seed library (layout, widget contract, quality rules, captions, motion, engine)
+        run: python3 -m pytest -q engine/tests
+
+      - name: Build the full asset pack
         run: python3 engine/assetgen/build.py --library assets/library
 
-      - name: Tests (layout, widget contract, quality rules, captions, motion, 5-topic regression)
-        run: python3 -m pytest -q engine/tests
+      - name: Regression set on the full library (5 topics x 3 aspect ratios)
+        run: python3 -m pytest -q engine/tests/test_regression.py
