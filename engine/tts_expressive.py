@@ -126,6 +126,8 @@ def read_wav(path: Path) -> Tuple[np.ndarray, int]:
 # --------------------------------------------------------------------------- Chatterbox (Modal) backend
 CHATTERBOX_URL = os.environ.get("STICKMAN_CHATTERBOX_URL",
                                 "https://n541921024--near-chatterbox-chatterbox-tts.us-east.modal.run")
+CHATTERBOX_ID_URL = os.environ.get("STICKMAN_CHATTERBOX_ID_URL",
+                                   "https://n541921024--near-chatterbox-id-chatterboxid-tts.us-east.modal.run")
 _ID_WORDS = {"yang", "dan", "di", "ini", "itu", "untuk", "dengan", "tidak", "kamu", "aku", "kita", "adalah",
              "dari", "ke", "pada", "akan", "bisa", "jadi", "kalau", "saya", "anda", "juga", "atau", "sudah"}
 
@@ -173,11 +175,15 @@ def chatterbox_synthesize(text: str, style: str = "", voice: str = "") -> Tuple[
     import time as _t
     import urllib.parse
     import urllib.request
-    q = urllib.parse.urlencode({"text": text, "lang": detect_lang(text)})
+    lang = detect_lang(text)
+    if lang == "ms" and CHATTERBOX_ID_URL:          # Indonesian text -> the Indonesian fine-tune
+        base, q = CHATTERBOX_ID_URL, urllib.parse.urlencode({"text": text})
+    else:
+        base, q = CHATTERBOX_URL, urllib.parse.urlencode({"text": text, "lang": lang})
     last: Optional[Exception] = None
     for attempt in range(3):                      # first call after idle cold-starts the GPU (can take minutes)
         try:
-            with urllib.request.urlopen(f"{CHATTERBOX_URL}?{q}", timeout=290) as r:
+            with urllib.request.urlopen(f"{base}?{q}", timeout=290) as r:
                 data = r.read()
             if data[:4] != b"RIFF":
                 raise RuntimeError("chatterbox returned no audio")
