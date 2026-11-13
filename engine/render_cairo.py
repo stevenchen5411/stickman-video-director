@@ -27,6 +27,7 @@ import audio_master
 import common
 import layout
 import schemas
+import widget_contract
 
 log = common.log
 
@@ -863,7 +864,7 @@ def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, lay: "layout.Lay
     if va.widget_id:
         try:
             wj = a.json(va.widget_id, "07_widgets")
-            if wj:
+            if wj and not widget_contract.is_stock(wj, fb):
                 wr = lay.widget or layout.Rect(W * 0.07, H * 0.07, W * 0.86, H * 0.24)
                 draw_widget(ctx, render_fx.widget_with_story(wj, fb), wr.x, wr.y, wr.w, wr.h, theme, t)
                 drew = True

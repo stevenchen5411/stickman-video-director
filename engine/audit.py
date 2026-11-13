@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 import common
 import schemas
+import widget_contract
 
 WORDS_PER_SEC = 2.6          # speaking rate at pace_multiplier 1.0
 MIN_SPEECH_SEC = 0.8
@@ -91,12 +92,32 @@ def auto_repair(scenes: List[Dict[str, Any]], index: schemas.LibraryIndex) -> Li
     return repaired
 
 
+def strip_stock_widgets(scenes: List[Dict[str, Any]], index: schemas.LibraryIndex, warnings: List[str]) -> List[str]:
+    """A widget that would still show the library's sample text is dropped (contract: story data or no widget)."""
+    lib = common.library_dir()
+    dropped: List[str] = []
+    for sc in scenes:
+        va = sc["visual_aid"]
+        wid = va.get("widget_id")
+        if not wid:
+            continue
+        wj = widget_contract.load(index, lib, wid)
+        if wj is None or not widget_contract.is_stock(wj, va.get("fallback_visual_aid")):
+            continue
+        va["widget_id"] = None
+        va["type"] = "library_prop" if va.get("prop_id") else "overlay_only" if va.get("overlay_id") else "callout_card"
+        dropped.append(sc["id"])
+        warnings.append(f"{sc['id']}: widget {wid} dropped (showed sample text, no story data)")
+    return dropped
+
+
 def audit_dict(pkg: Dict[str, Any], index: schemas.LibraryIndex, shots: Optional[List[Dict[str, Any]]] = None
                ) -> Dict[str, Any]:
     """Return a copy of `pkg` with quality_audit + status recomputed, plus `_report` (warnings) stripped by callers."""
     out = copy.deepcopy(pkg)
     scenes = out["scenes"]
     warnings: List[str] = []
+    strip_stock_widgets(scenes, index, warnings)
     pct = activity_pct(scenes)
     repaired: List[str] = []
     if pct < schemas.MIN_VISUAL_ACTIVITY_PCT:

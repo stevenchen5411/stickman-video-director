@@ -23,6 +23,7 @@ import common
 import forensics
 import llm
 import schemas
+import widget_contract
 
 log = common.log
 MAX_NEW_IDS = 6
@@ -145,12 +146,19 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
                   ) -> Tuple[Dict[str, Any], str]:
     shots = [{"shot_id": s["shot_id"], "dur": s["duration_sec"], "said": s.get("transcript", "")[:240]}
              for s in fx["shots"]][:60]
+    lib = common.library_dir()
+    wjs = {a.id: widget_contract.load(index, lib, a.id) for a in index.by_category("07_widgets")}
+    wjs = {k: v for k, v in wjs.items() if v}
+    widget_types = {k: v.get("type") for k, v in wjs.items()}
+    widget_shapes = widget_contract.shapes(list(wjs.values()))
     prompt = json.dumps({
         "task": "Remix this viral video's structure into an original 25-45 second vertical stickman video script.",
         "niche": niche,
         "source_title": fx.get("title", ""),
         "source_shots": shots,
         "library_catalog": build_catalog(index, niche, fx.get("title", "")),
+        "widget_types": widget_types,
+        "widget_shapes": widget_shapes,
         "rules": [
             "Use ONLY ids from library_catalog for character_id, theme/caption/bgm and voices. For other asset types you "
             f"may propose at most {MAX_NEW_IDS} NEW snake_case ids in total when nothing fits.",
@@ -168,7 +176,12 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
             "Visuals must ILLUSTRATE the narration literally: prop_id = the object being talked about (a syringe for an "
             "injection, a virus for an infection, a chart for growth); scene_id = where it happens (hospital_room, "
             "science_lab, trading_floor...) and stays the same until the story moves; widget_id for numbers/steps/lists "
-            "(its title/values come from your fallback title/values).",
+            "(its content comes from fallback.widget_data).",
+            "WIDGET DATA CONTRACT: use a widget ONLY when the line has numbers, steps, a list or a comparison worth "
+            "showing; otherwise leave widget_id empty. When you set widget_id, fallback.widget_data is REQUIRED: the same "
+            "keys and nesting as widget_shapes[widget_types[widget_id]] but with content written for THIS line "
+            "(real words and figures from the story; every key present, 1-6 short items, <=40 chars each). Never "
+            "leave the sample text from widget_shapes; a widget that still shows sample text is dropped.",
             "Give the stickman life: vary pose_id and expression_id with the emotion of each line; use gesture motions "
             "(talk_gesture_a/b/c, explain_hands, point_jab, nod_yes, wave_right...) while he explains and camera motions "
             "(cam_punch_small, cam_slow_push...) only for emphasis.",
@@ -184,7 +197,7 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
             "scenes": [{
                 "shot_id": "", "character_id": "", "pose_id": "", "expression_id": "", "motion_id": "",
                 "scene_id": "", "transition_in_id": "", "prop_id": "", "widget_id": "", "overlay_id": "",
-                "fallback": {"type": "callout_card|chart_bar", "title": "", "subtitle": ""},
+                "fallback": {"type": "callout_card|chart_bar", "title": "", "subtitle": "", "widget_data": {}},
                 "text": "", "acting_direction": "", "pace_multiplier": 1.0,
                 "speech": {"text": "", "expression_id": "", "placement": "before|after", "acting_direction": ""},
                 "emphasis_words": [{"word": "", "stress": "", "trigger_sfx": ""}],
@@ -324,6 +337,15 @@ def assemble_package(plan: Dict[str, Any], fx: Dict[str, Any], index: schemas.Li
                     "title": fb_title, "subtitle": (fb.get("subtitle") or None)}
         prop = pick("06_props", ps.get("prop_id"), i)
         widget = pick("07_widgets", ps.get("widget_id"), i)
+        wdata = None
+        if widget:
+            wj = widget_contract.load(index, common.library_dir(), widget)
+            wdata = widget_contract.coerce(wj, fb.get("widget_data")) if wj else None
+            if wdata:
+                fallback["data"] = wdata
+            if not wj or widget_contract.is_stock(wj, fallback):
+                log.info("director: scene %d widget %s dropped (no story data)", i + 1, widget)
+                widget = None
         overlay = pick("08_overlays", ps.get("overlay_id"), i)
         va_type = "library_prop" if prop else "widget" if widget else "overlay_only" if overlay else "callout_card"
         cid = chars[i]

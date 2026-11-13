@@ -1410,37 +1410,9 @@ WIDGET_TYPES = sorted(set(_WIDGETS) | {"bar_chart", "comparison_card", "funnel"}
 
 
 def widget_with_story(wj: Dict[str, Any], fb: Any) -> Dict[str, Any]:
-    """Let a scene's fallback_visual_aid (title/subtitle/labels/values written for this story) drive a library widget."""
-    if fb is None:
-        return wj
-    out = dict(wj)
-    d = dict(out.get("data") or {})
-    title, sub = getattr(fb, "title", None), getattr(fb, "subtitle", None)
-    values, labels = getattr(fb, "values", None), getattr(fb, "labels", None)
-    kind = out.get("type")
-    if title:
-        for k in ("title", "label", "text"):
-            if k in d:
-                d[k] = title
-                break
-    if sub and "label" in d and "title" in d:
-        d["label"] = sub
-    if values:
-        if "values" in d:
-            d["values"] = list(values)
-            if labels:
-                d["labels"] = list(labels)[: len(values)]
-        elif kind == "counter":
-            d["to"] = values[0]
-        elif kind in ("donut", "gauge", "battery") and "value" in d:
-            d["value"] = values[0]
-    if labels and not values:
-        if kind in ("checklist", "ranking"):
-            d["items"] = list(labels)[:5]
-        elif kind == "steps":
-            d["steps"] = list(labels)[:4]
-    out["data"] = d
-    return out
+    """A library widget carrying this story's data (see widget_contract)."""
+    import widget_contract
+    return widget_contract.apply(wj, fb)
 
 
 # =========================================================================== overlays

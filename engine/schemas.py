@@ -272,6 +272,7 @@ class FallbackVisualAid(_Base):
     subtitle: Optional[str] = None
     values: Optional[List[float]] = None
     labels: Optional[List[str]] = None
+    data: Optional[Dict[str, Any]] = None   # story content for the chosen widget (same shape as the library widget)
 
 
 class VisualAid(_Base):
