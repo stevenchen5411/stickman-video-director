@@ -117,14 +117,15 @@ def solve(W: int, H: int, pts: Dict[str, Any], head_r: float, lw: float, *,
     # ---- prop: beside the body at torso height, on the roomier side
     if has_prop:
         b = PROP_FRAC * min(W, H)
-        left_room = char.x - gap - SAFE_SIDE * W
-        right_room = (1 - SAFE_SIDE) * W - (char.r + gap)
+        sg = gap + 0.015 * W                               # extra side margin for the pulse / camera drift
+        left_room = char.x - sg - SAFE_SIDE * W
+        right_room = (1 - SAFE_SIDE) * W - (char.r + sg)
         side, room = ("left", left_room) if left_room >= right_room else ("right", right_room)
         bb = max(0.0, min(b, room))
         if bb < 0.55 * b:
             lay.notes.append("little room beside the character; prop shrunk")
         bb = max(bb, 0.4 * b)
-        x = char.x - gap - bb if side == "left" else char.r + gap
+        x = char.x - sg - bb if side == "left" else char.r + sg
         yc = (pts["neck_base"][1] + pts["pelvis"][1]) / 2 + lay.char_dy
         y = yc - bb / 2
         top_lim = (lay.widget.b + gap) if lay.widget else 0.04 * H

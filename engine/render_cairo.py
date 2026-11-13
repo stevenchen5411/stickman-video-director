@@ -24,8 +24,10 @@ import cairo
 import numpy as np
 
 import audio_master
+import caption_split
 import common
 import layout
+import motion_layer
 import schemas
 import widget_contract
 
@@ -649,7 +651,7 @@ def draw_captions(ctx, style: Dict[str, Any], words: List[Dict[str, Any]], t: fl
     if not words:
         return
     per = max(1, int(style.get("max_words_per_line", 3)))
-    groups = [words[i:i + per] for i in range(0, len(words), per)]
+    groups = caption_split.chunks(words, per)
     cur = None
     for g in groups:
         if t >= g[0]["start"] - 0.05:
@@ -822,6 +824,12 @@ class SceneCtx:
         self.prev_joints: Optional[Dict[str, float]] = None   # set by build_scene_ctxs: pose springs from here
         self.layout: Optional[layout.Layout] = None
         self._lay_key: Optional[tuple] = None
+        self.idx = next((i for i, x in enumerate(pkg.scenes) if x is sc), 0)
+        self.dur = max(1.5, float(tl.get("end_sec", 0.0)) - float(tl.get("start_sec", 0.0)))
+        self.emph = motion_layer.emphasis_times(self.words, [e.word for e in sc.narration.prosody.emphasis_words])
+
+    def pulse(self, t: float) -> float:
+        return motion_layer.pulse(t, self.emph)
 
     def solve_layout(self, W: int, H: int, ax: float, ay: float) -> "layout.Layout":
         """Zones for caption / widget / prop from the character's target pose (stable for the whole scene)."""
@@ -830,7 +838,11 @@ class SceneCtx:
             rig = {**DEFAULT_RIG, **self.char.get("rig", {})}
             joints = {**DEFAULT_POSE, **(self.pose.get("joints") or {})}
             U = 0.44 * H
-            pts = rig_points(rig, joints, U, (ax, ay), 1.0, ground=not self.pose.get("airborne", False))
+            ground = not self.pose.get("airborne", False)
+            pts = rig_points(rig, joints, U, (ax, ay), 1.0, ground=ground)
+            if self.emph:      # the emphasis pulse opens the arms a little: keep the zones clear of that extent too
+                wide = {**joints, "l_shoulder": joints["l_shoulder"] + 16.0, "r_shoulder": joints["r_shoulder"] - 16.0}
+                pts = {**pts, **{k + "_p": v for k, v in rig_points(rig, wide, U, (ax, ay), 1.0, ground=ground).items()}}
             va = self.sc.visual_aid
             self.layout = layout.solve(W, H, pts, rig["head_radius"] * U, max(2.0, rig["line_width"] * U),
                                        caption_style=self.caption, has_widget=bool(va.widget_id),
@@ -849,6 +861,11 @@ def scene_joints(s: "SceneCtx", t: float, ms: Dict[str, float], speaking: bool) 
     j["l_shoulder"] += 2.0 * math.sin(t * 1.9)
     j["r_shoulder"] -= 2.0 * math.sin(t * 1.9 + 0.7)
     j["neck"] += 1.5 * math.sin(t * 1.3)
+    pu = s.pulse(t)                                    # emphasis word: arms open a little and the head lifts
+    if pu:
+        j["l_shoulder"] += 16.0 * pu
+        j["r_shoulder"] -= 16.0 * pu
+        j["neck"] += 3.0 * pu
     if speaking:
         j["neck"] += 4.0 * math.sin(t * 7.5)
     for k, v in ms.items():
@@ -879,8 +896,10 @@ def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, lay: "layout.Lay
                 p = clamp(spring_step(t - 0.12, 240, 13), 0, 1.3)
                 # pivot on the edge next to the character, so the pop-in grows away from the body
                 pivot_x = slot.r if lay.prop_side == "left" else slot.x
+                edx, edy = motion_layer.entrance_offset(motion_layer.entrance_variant(va.prop_id), p, W, H,
+                                                        -1 if lay.prop_side == "left" else 1)
                 ctx.save()
-                ctx.translate(pivot_x, slot.y + slot.h / 2 + math.sin(t * 2.2) * H * 0.006)   # gentle float
+                ctx.translate(pivot_x + edx, slot.y + slot.h / 2 + edy + math.sin(t * 2.2) * H * 0.006)   # gentle float
                 ctx.rotate(math.sin(t * 1.7) * 0.035)
                 safe_scale(ctx, max(0.01, p * obj_scale), max(0.01, p * obj_scale))
                 draw_surface(ctx, surf, slot.x - pivot_x, -slot.h / 2, box, box, clamp(t / 0.1))
@@ -899,6 +918,12 @@ def draw_scene(ctx, s: SceneCtx, W: int, H: int, t: float) -> None:
     """Composite one frame of scene-local time `t` (seconds since the scene's start)."""
     ms = eval_motion(s.motion, t)
     theme = s.theme
+    pu = s.pulse(t)
+    dscale, dcam_x = motion_layer.drift(t, s.dur, s.idx, s.motion)
+    ms["camera.scale"] *= dscale
+    ms["camera.x"] += dcam_x
+    ms["character.scale"] *= 1.0 + 0.04 * pu
+    ms["object.scale"] *= 1.0 + 0.10 * pu
 
     def content() -> None:
         ctx.save()

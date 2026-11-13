@@ -1,0 +1,36 @@
+name: Engine tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["engine/**", "assets/**", ".github/workflows/engine-tests.yml"]
+  pull_request:
+    paths: ["engine/**", "assets/**"]
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg libcairo2-dev pkg-config python3-dev fonts-dejavu-core
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: engine/requirements.txt
+
+      - name: Install Python dependencies
+        run: pip install -r engine/requirements.txt pytest
+
+      - name: Build the asset pack (the regression set runs against the full library)
+        run: python3 engine/assetgen/build.py --library assets/library
+
+      - name: Tests (layout, widget contract, quality rules, captions, motion, 5-topic regression)
+        run: python3 -m pytest -q engine/tests
