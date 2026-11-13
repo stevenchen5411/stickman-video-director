@@ -198,6 +198,22 @@ class TtsProbe(BaseModel):
     style: str = ""
 
 
+class AiProbe(BaseModel):
+    provider: str = Field("gemini", pattern="^(claude|gemini|chatgpt)$")
+    prompt: str = 'Reply with JSON only: {"ok": true, "word": "halo"}'
+
+
+@app.post("/selftest/ai")
+def selftest_ai(req: AiProbe) -> Dict[str, Any]:
+    """Diagnostics: one JSON call preferring the given provider. Returns which provider answered, or the error."""
+    t0 = time.time()
+    try:
+        out, used = llm.call_json("You answer with a single JSON object.", req.prompt, prefer=req.provider)
+        return {"ok": True, "provider": used, "seconds": round(time.time() - t0, 1), "reply": out}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "seconds": round(time.time() - t0, 1), "error": f"{type(e).__name__}: {str(e)[:400]}"}
+
+
 @app.post("/selftest/tts")
 def selftest_tts(req: TtsProbe) -> Dict[str, Any]:
     """Diagnostics: one Gemini TTS call with the in-memory key. Returns timing/duration or the FULL error text."""
