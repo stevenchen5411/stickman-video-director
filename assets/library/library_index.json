@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at_utc": "2026-11-12T15:35:18Z",
+  "updated_at_utc": "2026-11-13T17:41:14Z",
   "assets": [
     {
       "id": "kael_hoodie",
@@ -838,6 +838,195 @@
       "meta": {
         "duration_sec": 0.6,
         "sample_rate": 44100
+      }
+    },
+    {
+      "id": "binocs_backdrop",
+      "category": "05_scenes",
+      "scope": "specific",
+      "niche_tags": [
+        "binocs"
+      ],
+      "file_path": "05_scenes/binocs_backdrop.svg",
+      "thumb_path": ".thumbs/binocs_backdrop.png",
+      "preview_path": null,
+      "default_voice_id": null,
+      "preview_audio_path": null,
+      "gemini_voice_name": null,
+      "usage_count": 0,
+      "perceptual_hash": "c6d6296969c6d629",
+      "meta": {}
+    },
+    {
+      "id": "binocs_icon",
+      "category": "06_props",
+      "scope": "specific",
+      "niche_tags": [
+        "binocs"
+      ],
+      "file_path": "06_props/binocs_icon.svg",
+      "thumb_path": ".thumbs/binocs_icon.png",
+      "preview_path": null,
+      "default_voice_id": null,
+      "preview_audio_path": null,
+      "gemini_voice_name": null,
+      "usage_count": 0,
+      "perceptual_hash": "cc8c3333ce993966",
+      "meta": {}
+    },
+    {
+      "id": "near_sit_relaxed",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "home",
+        "calm"
+      ],
+      "file_path": "02_poses/near_sit_relaxed.json",
+      "thumb_path": ".thumbs/near_sit_relaxed.png",
+      "preview_path": null,
+      "default_voice_id": null,
+      "preview_audio_path": null,
+      "gemini_voice_name": null,
+      "usage_count": 0,
+      "perceptual_hash": "ccd3666631333399",
+      "meta": {}
+    },
+    {
+      "id": "near_sit_slump_sad",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "sad",
+        "home"
+      ],
+      "file_path": "02_poses/near_sit_slump_sad.json",
+      "thumb_path": ".thumbs/near_sit_slump_sad.png",
+      "preview_path": null,
+      "default_voice_id": null,
+      "preview_audio_path": null,
+      "gemini_voice_name": null,
+      "usage_count": 0,
+      "perceptual_hash": "ccd3666631333399",
+      "meta": {}
+    },
+    {
+      "id": "near_head_in_hands",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "sad",
+        "finance"
+      ],
+      "file_path": "02_poses/near_head_in_hands.json",
+      "thumb_path": ".thumbs/near_head_in_hands.png",
+      "preview_path": null,
+      "default_voice_id": null,
+      "preview_audio_path": null,
+      "gemini_voice_name": null,
+      "usage_count": 0,
+      "perceptual_hash": "ccd3666631333399",
+      "meta": {}
+    },
+    {
+      "id": "near_panic_hands_up",
+      "category": "02_poses",
+      "scope": "global",
+      "niche_tags": [
+        "fear",
+        "energy"
+      ],
+      "file_path": "02_poses/near_panic_hands_up.json",
+      "thumb_path": ".thumbs/near_panic_hands_up.png",
+      "preview_path": null,
+      "default_voice_id": null,
+      "preview_audio_path": null,
+      "gemini_voice_name": null,
+      "usage_count": 0,
+      "perceptual_hash": "ccd3666631333399",
+      "meta": {}
+    },
+    {
+      "id": "near_sofa_lounge",
+      "category": "06_props",
+      "scope": "specific",
+      "niche_tags": [
+        "home"
+      ],
+      "file_path": "06_props/near_sofa_lounge.svg",
+      "thumb_path": ".thumbs/near_sofa_lounge.png",
+      "preview_path": null,
+      "default_voice_id": null,
+      "preview_audio_path": null,
+      "gemini_voice_name": null,
+      "usage_count": 0,
+      "perceptual_hash": "58ac8a3eec77",
+      "meta": {
+        "anchors": {
+          "seat": [
+            128.0,
+            144.0
+          ],
+          "seat_left": [
+            88.0,
+            144.0
+          ],
+          "seat_right": [
+            168.0,
+            144.0
+          ],
+          "hand_left": [
+            36.0,
+            114.0
+          ],
+          "hand_right": [
+            220.0,
+            114.0
+          ],
+          "floor": [
+            128.0,
+            220.0
+          ]
+        },
+        "anchor_viewbox": 256
+      }
+    },
+    {
+      "id": "near_bathtub_full",
+      "category": "06_props",
+      "scope": "specific",
+      "niche_tags": [
+        "home",
+        "health"
+      ],
+      "file_path": "06_props/near_bathtub_full.svg",
+      "thumb_path": ".thumbs/near_bathtub_full.png",
+      "preview_path": null,
+      "default_voice_id": null,
+      "preview_audio_path": null,
+      "gemini_voice_name": null,
+      "usage_count": 0,
+      "perceptual_hash": "fad4d40e832ba1ba",
+      "meta": {
+        "anchors": {
+          "seat": [
+            128.0,
+            150.0
+          ],
+          "inside": [
+            128.0,
+            138.0
+          ],
+          "hand": [
+            34.0,
+            106.0
+          ],
+          "floor": [
+            128.0,
+            236.0
+          ]
+        },
+        "anchor_viewbox": 256
       }
     }
   ]

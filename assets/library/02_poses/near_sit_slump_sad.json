@@ -1,0 +1,25 @@
+{
+  "id": "near_sit_slump_sad",
+  "format": "pose/v1",
+  "angles_unit": "degrees_from_vertical",
+  "tags": [
+    "sad",
+    "home"
+  ],
+  "joints": {
+    "torso_lean": 28,
+    "neck": 32,
+    "l_shoulder": 12,
+    "l_elbow": 18,
+    "r_shoulder": -12,
+    "r_elbow": -18,
+    "l_hip": 88,
+    "l_knee": 90,
+    "r_hip": -88,
+    "r_knee": -90
+  },
+  "hand_anchors": {
+    "l": "between_knees",
+    "r": "between_knees"
+  }
+}

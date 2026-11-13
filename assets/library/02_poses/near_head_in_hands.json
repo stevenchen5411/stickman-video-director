@@ -1,0 +1,21 @@
+{
+  "id": "near_head_in_hands",
+  "format": "pose/v1",
+  "angles_unit": "degrees_from_vertical",
+  "joints": {
+    "torso_lean": 12,
+    "neck": 25,
+    "l_shoulder": 40,
+    "l_elbow": 130,
+    "r_shoulder": -40,
+    "r_elbow": -130,
+    "l_hip": 2,
+    "l_knee": 0,
+    "r_hip": -2,
+    "r_knee": 0
+  },
+  "hand_anchors": {
+    "l": "face",
+    "r": "face"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "near_sit_relaxed",
+  "format": "pose/v1",
+  "angles_unit": "degrees_from_vertical",
+  "joints": {
+    "torso_lean": 0,
+    "neck": 0,
+    "l_shoulder": 20,
+    "l_elbow": 85,
+    "r_shoulder": -20,
+    "r_elbow": -85,
+    "l_hip": 90,
+    "l_knee": 90,
+    "r_hip": -90,
+    "r_knee": 90
+  },
+  "hand_anchors": {
+    "l": "thighs",
+    "r": "thighs"
+  }
+}
