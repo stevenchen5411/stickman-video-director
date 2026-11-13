@@ -175,7 +175,9 @@ def plan_with_llm(fx: Dict[str, Any], index: schemas.LibraryIndex, niche: str, e
             "{topic: [ids]}; any id in any group is valid.",
             "Visuals must ILLUSTRATE the narration literally: prop_id = the object being talked about (a syringe for an "
             "injection, a virus for an infection, a chart for growth); scene_id = where it happens (hospital_room, "
-            "science_lab, trading_floor...) and stays the same until the story moves; widget_id for numbers/steps/lists "
+            "science_lab, trading_floor...); change scene_id whenever the sub-topic or place changes and never keep the same "
+            "scene_id for more than 2 scenes in a row; a prop_id must be an object the line actually names or clearly "
+            "implies (never a generic badge or icon); widget_id for numbers/steps/lists "
             "(its content comes from fallback.widget_data).",
             "WIDGET DATA CONTRACT: use a widget ONLY when the line has numbers, steps, a list or a comparison worth "
             "showing; otherwise leave widget_id empty. When you set widget_id, fallback.widget_data is REQUIRED: the same "

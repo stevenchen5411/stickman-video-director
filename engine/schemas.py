@@ -237,6 +237,7 @@ class QualityAudit(_Base):
     avg_beat_sec: float = Field(ge=0)
     visual_activity_pct: float = Field(ge=0, le=100)
     auto_repaired_scenes: List[str] = Field(default_factory=list)
+    quality_repairs: List[str] = Field(default_factory=list)   # prop/background/motion fixes made by quality_rules
     passed: bool
 
     @model_validator(mode="after")

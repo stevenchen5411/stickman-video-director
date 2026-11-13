@@ -16,6 +16,7 @@ import sys
 from typing import Any, Dict, List, Optional
 
 import common
+import quality_rules
 import schemas
 import widget_contract
 
@@ -118,11 +119,15 @@ def audit_dict(pkg: Dict[str, Any], index: schemas.LibraryIndex, shots: Optional
     scenes = out["scenes"]
     warnings: List[str] = []
     strip_stock_widgets(scenes, index, warnings)
+    repairs: List[str] = []
+    repairs += quality_rules.vary_backgrounds(scenes, index)
     pct = activity_pct(scenes)
     repaired: List[str] = []
     if pct < schemas.MIN_VISUAL_ACTIVITY_PCT:
         repaired = auto_repair(scenes, index)
         pct = activity_pct(scenes)
+    repairs += quality_rules.vary_motions(scenes, _pools(index)[0])
+    warnings += repairs
 
     grounded = True
     known = {s["shot_id"] for s in shots} if shots else None
@@ -147,6 +152,7 @@ def audit_dict(pkg: Dict[str, Any], index: schemas.LibraryIndex, shots: Optional
         "avg_beat_sec": round(total / len(scenes), 2) if scenes else 0.0,
         "visual_activity_pct": pct,
         "auto_repaired_scenes": repaired,
+        "quality_repairs": repairs,
         "passed": passed,
     }
     if out.get("status") in (None, "draft", "ready_to_generate"):
