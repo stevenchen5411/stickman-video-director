@@ -176,13 +176,18 @@ def _post_json(url: str, headers: Dict[str, str], payload: Dict[str, Any], timeo
 def extract_json(text: str) -> Dict[str, Any]:
     t = text.strip()
     t = re.sub(r"^```(?:json)?\s*|\s*```$", "", t, flags=re.S)
-    try:
-        return json.loads(t)
-    except json.JSONDecodeError:
-        pass
+    for strict in (True, False):          # strict=False tolerates raw newlines/tabs inside strings (web Gemini does this in SVG)
+        try:
+            return json.loads(t, strict=strict)
+        except json.JSONDecodeError:
+            pass
     start, end = t.find("{"), t.rfind("}")
     if start >= 0 and end > start:
-        return json.loads(t[start:end + 1])
+        try:
+            return json.loads(t[start:end + 1])
+        except json.JSONDecodeError:
+            return json.loads(t[start:end + 1], strict=False)
+    log.warning("no JSON in model output; head: %r", text[:300])
     raise ValueError("no JSON object found in model output")
 
 

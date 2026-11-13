@@ -41,3 +41,20 @@ def test_complete_without_session_is_soft_failure():
     g.clear_session()
     with pytest.raises(g.WebUnavailable):
         g.complete("sys", "hi")
+
+
+def test_extract_json_tolerates_raw_newlines():
+    raw = '```json\n{"svg": "<svg>\n<g/></svg>", "anchors": {"seat": [1, 2]}}\n```'
+    assert llm.extract_json(raw)["anchors"]["seat"] == [1, 2]
+
+
+def test_model_header_and_unwrap():
+    h = g.model_header("flash")["x-goog-ext-525001261-jspb"]
+    assert json.loads(h)[4] == g.MODELS["flash"][0] and g.model_header("nope") == {}
+    import forge
+    assert forge._SYSTEM.endswith("repeat the task or rules.")
+
+
+def test_autolink_cleanup():
+    raw = '<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"></svg>'
+    assert g._AUTOLINK.sub(r"\1", raw) == '<svg xmlns="http://www.w3.org/2000/svg"></svg>'

@@ -105,6 +105,7 @@ class ForgeRequest(BaseModel):
     scope: str = Field("global", pattern="^(global|specific)$")
     niche_tags: List[str] = Field(default_factory=lambda: ["general"], max_length=8)
     use_ai: bool = True
+    prefer: Optional[str] = Field(None, pattern="^(claude|gemini|chatgpt)$")
 
 
 class CurateRequest(BaseModel):
@@ -201,12 +202,19 @@ class TtsProbe(BaseModel):
 class AiProbe(BaseModel):
     provider: str = Field("gemini", pattern="^(claude|gemini|chatgpt)$")
     prompt: str = 'Reply with JSON only: {"ok": true, "word": "halo"}'
+    raw: bool = False              # gemini only: return the unparsed web reply (debugging)
 
 
 @app.post("/selftest/ai")
 def selftest_ai(req: AiProbe) -> Dict[str, Any]:
     """Diagnostics: one JSON call preferring the given provider. Returns which provider answered, or the error."""
     t0 = time.time()
+    if req.raw and req.provider == "gemini":
+        try:
+            txt = gemini_web.complete("You answer with a single JSON object.", req.prompt)
+            return {"ok": True, "seconds": round(time.time() - t0, 1), "raw": txt[:3000], "chars": len(txt)}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(e).__name__}: {str(e)[:400]}"}
     try:
         out, used = llm.call_json("You answer with a single JSON object.", req.prompt, prefer=req.provider)
         return {"ok": True, "provider": used, "seconds": round(time.time() - t0, 1), "reply": out}
@@ -297,7 +305,7 @@ def forge_asset(req: ForgeRequest) -> Dict[str, str]:
         raise HTTPException(422, "unknown category")
     import forge
     return {"job_id": submit("forge", lambda say: forge.forge_asset(
-        req.category, req.id, req.brief, req.scope, req.niche_tags, use_ai=req.use_ai))}
+        req.category, req.id, req.brief, req.scope, req.niche_tags, use_ai=req.use_ai, prefer=req.prefer))}
 
 
 @app.post("/forge/rebuild-thumbs")

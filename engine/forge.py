@@ -216,13 +216,20 @@ def _to_ogg(wav: Path, ogg: Path) -> None:
 
 
 # --------------------------------------------------------------------------- LLM synthesis
-_SYSTEM = "You design assets for a procedural stickman video renderer. Reply with ONE JSON object and nothing else."
+_SYSTEM = ("You design assets for a procedural stickman video renderer. Reply with ONE JSON object and nothing else. "
+           "Put the answer fields (for example svg, anchors, asset) at the TOP LEVEL of that object; do not repeat the task or rules.")
+
+
+LAST_ANCHORS: Dict[str, Any] = {}
+PREFER: Optional[str] = None      # provider to try first (set per forge call, e.g. "gemini")
 
 
 def _ask(prompt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     try:
         import llm
-        data, _ = llm.call_json(_SYSTEM, json.dumps(prompt))
+        data, _ = llm.call_json(_SYSTEM, json.dumps(prompt), prefer=PREFER)
+        if isinstance(data, dict) and isinstance(data.get("output"), dict):   # web models echo the prompt layout: unwrap it
+            data = {**{k: v for k, v in data.items() if k != "output"}, **data["output"]}
         return data
     except Exception as e:  # noqa: BLE001
         log.info("forge: no AI synthesis (%s)", str(e)[:100])
@@ -236,9 +243,17 @@ def _ai_svg(category: str, aid: str, brief: str, tags: List[str]) -> Optional[st
                  "rules": [f"viewBox must be \"{vb}\"; solid fills/strokes/gradients only; no text-heavy art, no scripts, "
                            "no external references, under 8KB. " + extra,
                            "Style: bold flat shapes, thick dark outlines (stroke-width 6-8) for props, high contrast."],
-                 "output": {"svg": "<svg ...>...</svg>"}})
+                 "output": {"svg": "<svg ...>...</svg>",
+                            "anchors": {"seat": [128, 150]} if category == "06_props" else {}},
+                 "anchors_help": "optional named attach points in the 256x256 viewBox where a character touches the prop: "
+                                 "seat (pelvis rests here), floor (feet stand here), inside (torso/hips sit inside), hand (hands grip here)."})
     if not data or not isinstance(data.get("svg"), str):
         return None
+    LAST_ANCHORS.clear()
+    if isinstance(data.get("anchors"), dict):
+        for k, v in data["anchors"].items():
+            if isinstance(k, str) and isinstance(v, list) and len(v) == 2 and all(isinstance(n, (int, float)) for n in v):
+                LAST_ANCHORS[k[:20]] = [round(float(max(0, min(256, v[0]))), 1), round(float(max(0, min(256, v[1]))), 1)]
     try:
         return validate_svg(data["svg"])
     except Exception as e:  # noqa: BLE001
@@ -253,7 +268,11 @@ def _ai_json(lib: Path, index: schemas.LibraryIndex, category: str, aid: str, br
         return None
     data = _ask({"task": f"Create a NEW '{category}' asset id '{aid}'. Brief: {brief}. Tags: {tags}.",
                  "rules": ["Follow the exemplar's exact keys, nesting, value types and `format` string.",
-                           "Change values meaningfully so the result is visually/behaviourally different from the exemplar."],
+                           "Change values meaningfully so the result is visually/behaviourally different from the exemplar."]
+                 + (["Joint angles are degrees from straight DOWN for hips/shoulders (0 = hanging down, +/-90 = horizontal, 180 = up); "
+                     "knee bends the shin back; torso_lean tilts the body from vertical; neck tilts the head. Feet are auto-grounded, "
+                     "so a seated pose is hips about 85-90 and knees about 85-95 with the torso upright; a slump/sad pose leans the torso and neck forward and drops the arms; "
+                     "mirror l_/r_ values sensibly; keep every key from the exemplar."] if category == "02_poses" else []),
                  "exemplar": ex, "output": {"asset": "<same structure as exemplar>"}})
     asset = (data or {}).get("asset")
     if isinstance(asset, dict) and asset.get("format") == ex.get("format") and set(asset) >= (set(ex) - {"id"}):
@@ -268,8 +287,10 @@ def _register(index: schemas.LibraryIndex, entry: Dict[str, Any]) -> None:
 
 
 def forge_asset(category: str, aid: str, brief: str = "", scope: str = "global", tags: Optional[List[str]] = None,
-                library: Optional[Path] = None, use_ai: bool = True) -> Dict[str, Any]:
+                library: Optional[Path] = None, use_ai: bool = True, prefer: Optional[str] = None) -> Dict[str, Any]:
     """Create one asset. Returns {status: created|exists|duplicate, id, ...}. Never raises on AI failure."""
+    global PREFER
+    PREFER = prefer
     lib = Path(library) if library else common.library_dir()
     if category not in schemas.CATEGORIES:
         raise ValueError(f"unknown category {category}")
@@ -292,6 +313,8 @@ def forge_asset(category: str, aid: str, brief: str = "", scope: str = "global",
         (lib / category).mkdir(parents=True, exist_ok=True)
         (lib / rel).write_text(svg + "\n", encoding="utf-8")
         written.append(lib / rel)
+        if category == "06_props" and ai_used and LAST_ANCHORS:
+            entry["meta"] = {"anchors": dict(LAST_ANCHORS), "anchor_viewbox": 256}
     elif category == "14_sfx":
         spec = (_ask({"task": f"Describe a short sound effect '{aid}'. Brief: {brief}",
                       "output": {"kind": "tick|thud|whoosh|pop|ding|glitch|noise", "freq": 600, "duration": 0.3, "decay": 0.1}})
@@ -350,7 +373,13 @@ def forge_asset(category: str, aid: str, brief: str = "", scope: str = "global",
         try:
             thumb = lib / ".thumbs" / f"{aid}.png"
             thumb.parent.mkdir(parents=True, exist_ok=True)
-            _renderer().render_asset_thumbnail(lib, entry, thumb, THUMB_SIZE)
+            if category in SVG_CATS and rel.endswith(".svg"):
+                # not registered in the index yet, so the index-based renderer would draw a generic placeholder for it
+                import cairosvg
+                cairosvg.svg2png(bytestring=(lib / rel).read_bytes(), write_to=str(thumb), output_width=THUMB_SIZE,
+                                 output_height=THUMB_SIZE, background_color="#ffffff")
+            else:
+                _renderer().render_asset_thumbnail(lib, entry, thumb, THUMB_SIZE)
             h = phash_image(thumb)
             if category in DEDUP_CATS and not (category == "08_overlays" and rel.endswith(".json")):
                 dup = find_duplicate(index, category, h)

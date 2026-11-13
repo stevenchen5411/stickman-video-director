@@ -9,6 +9,7 @@ Session data lives in memory only. Cookies are never logged.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from typing import Any, Dict, List, Optional
@@ -36,6 +37,21 @@ def clear_session() -> None:
 
 def has_session() -> bool:
     return bool(SESSION.get("cookie_header"))
+
+
+MODELS = {   # web model ids (from the public Gemini web client; may change). capacity tail 1 = free tier, number = family
+    "flash": ("fbb127bbb056c959", 1, 1), "pro": ("9d8ca3786ebdfbea", 1, 3), "flash-lite": ("cf41b0e0dd7d53e5", 1, 6),
+}
+MODEL = os.environ.get("STICKMAN_GEMINI_WEB_MODEL", "flash")
+
+
+def model_header(name: str) -> Dict[str, str]:
+    if name not in MODELS:
+        return {}
+    mid, tail, num = MODELS[name]
+    return {"x-goog-ext-525001261-jspb": json.dumps([1, None, None, None, mid, None, None, 0, [4, 5, 6, 8], None, None, tail, None, None, num],
+                                                      separators=(",", ":")),
+            "x-goog-ext-73010989-jspb": "[0]", "x-goog-ext-73010990-jspb": "[0,0,0]"}
 
 
 def _headers() -> Dict[str, str]:
@@ -96,6 +112,9 @@ def parse_response(body: str) -> str:
     return text
 
 
+_AUTOLINK = re.compile(r"\[(https?://[^\]\s]+)\]\(\1\)")
+
+
 def complete(system: str, prompt: str, timeout: float = 150) -> str:
     if not has_session():
         raise WebUnavailable("no gemini web session")
@@ -105,8 +124,12 @@ def complete(system: str, prompt: str, timeout: float = 150) -> str:
     freq = json.dumps([None, json.dumps([[full], None, [None, None, None]])])
     url = f"{BASE}/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate"
     params = {"bl": tok.get("bl", ""), "_reqid": str(int(time.time()) % 900000 + 100000), "rt": "c", "hl": "en"}
+    base = {**_headers(), "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"}
     r = cr.post(url, params=params, data={"f.req": freq, "at": tok["at"]}, impersonate="chrome", timeout=timeout,
-                headers={**_headers(), "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
+                headers={**base, **model_header(MODEL)})
+    if (r.status_code >= 400 or not parse_response(r.text)) and MODEL in MODELS:   # bad/old model header: retry with the account default
+        log.warning("gemini web model %s failed (HTTP %s); retrying with the default model", MODEL, r.status_code)
+        r = cr.post(url, params=params, data={"f.req": freq, "at": tok["at"]}, impersonate="chrome", timeout=timeout, headers=base)
     if r.status_code in (401, 403):
         _TOKENS.clear()
         raise WebAuthError(r.status_code)
@@ -119,4 +142,4 @@ def complete(system: str, prompt: str, timeout: float = 150) -> str:
     if not out:
         _TOKENS.clear()
         raise WebUnavailable("empty Gemini web reply (format changed or session expired)")
-    return out
+    return _AUTOLINK.sub(r"\1", out)
