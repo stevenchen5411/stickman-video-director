@@ -25,6 +25,7 @@ import numpy as np
 
 import audio_master
 import common
+import layout
 import schemas
 
 log = common.log
@@ -818,6 +819,23 @@ class SceneCtx:
                 b = min(b, self.words[0]["start"] - 0.05)
             self.cap_hidden = (a, b)
         self.prev_joints: Optional[Dict[str, float]] = None   # set by build_scene_ctxs: pose springs from here
+        self.layout: Optional[layout.Layout] = None
+        self._lay_key: Optional[tuple] = None
+
+    def solve_layout(self, W: int, H: int, ax: float, ay: float) -> "layout.Layout":
+        """Zones for caption / widget / prop from the character's target pose (stable for the whole scene)."""
+        key = (W, H, round(ax, 1), round(ay, 1))
+        if self._lay_key != key:
+            rig = {**DEFAULT_RIG, **self.char.get("rig", {})}
+            joints = {**DEFAULT_POSE, **(self.pose.get("joints") or {})}
+            U = 0.44 * H
+            pts = rig_points(rig, joints, U, (ax, ay), 1.0, ground=not self.pose.get("airborne", False))
+            va = self.sc.visual_aid
+            self.layout = layout.solve(W, H, pts, rig["head_radius"] * U, max(2.0, rig["line_width"] * U),
+                                       caption_style=self.caption, has_widget=bool(va.widget_id),
+                                       has_prop=bool(va.prop_id))
+            self._lay_key = key
+        return self.layout  # type: ignore[return-value]
 
 
 def scene_joints(s: "SceneCtx", t: float, ms: Dict[str, float], speaking: bool) -> Dict[str, float]:
@@ -838,7 +856,7 @@ def scene_joints(s: "SceneCtx", t: float, ms: Dict[str, float], speaking: bool) 
     return j
 
 
-def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, face_right: bool, obj_scale: float = 1.0) -> None:
+def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, lay: "layout.Layout", obj_scale: float = 1.0) -> None:
     va, theme, a = s.sc.visual_aid, s.theme, s.assets
     fb = va.fallback_visual_aid
     drew = False
@@ -846,23 +864,25 @@ def draw_visual_aid(ctx, s: SceneCtx, W: int, H: int, t: float, face_right: bool
         try:
             wj = a.json(va.widget_id, "07_widgets")
             if wj:
-                draw_widget(ctx, render_fx.widget_with_story(wj, fb), W * 0.07, H * 0.07, W * 0.86, H * 0.24, theme, t)
+                wr = lay.widget or layout.Rect(W * 0.07, H * 0.07, W * 0.86, H * 0.24)
+                draw_widget(ctx, render_fx.widget_with_story(wj, fb), wr.x, wr.y, wr.w, wr.h, theme, t)
                 drew = True
         except Exception as e:  # noqa: BLE001
             log.warning("widget %s failed: %s", va.widget_id, e)
     if va.prop_id:
         try:
-            box = int(min(W, H) * 0.34)
+            slot = lay.prop or layout.Rect(W * 0.58, H * 0.38, min(W, H) * 0.28, min(W, H) * 0.28)
+            box = int(slot.w)
             surf = a.svg(va.prop_id, "06_props", box, box)
             if surf:
                 p = clamp(spring_step(t - 0.12, 240, 13), 0, 1.3)
-                px = W * (0.08 if face_right else 0.58)
-                py = H * 0.38
+                # pivot on the edge next to the character, so the pop-in grows away from the body
+                pivot_x = slot.r if lay.prop_side == "left" else slot.x
                 ctx.save()
-                ctx.translate(px + box / 2, py + box / 2 + math.sin(t * 2.2) * H * 0.006)   # gentle float
+                ctx.translate(pivot_x, slot.y + slot.h / 2 + math.sin(t * 2.2) * H * 0.006)   # gentle float
                 ctx.rotate(math.sin(t * 1.7) * 0.035)
                 safe_scale(ctx, max(0.01, p * obj_scale), max(0.01, p * obj_scale))
-                draw_surface(ctx, surf, -box / 2, -box / 2, box, box, clamp(t / 0.1))
+                draw_surface(ctx, surf, slot.x - pivot_x, -slot.h / 2, box, box, clamp(t / 0.1))
                 ctx.restore()
                 drew = True
         except Exception as e:  # noqa: BLE001
@@ -888,15 +908,15 @@ def draw_scene(ctx, s: SceneCtx, W: int, H: int, t: float) -> None:
             ctx.rotate(math.radians(ms["camera.rot"]))
         ctx.translate(-W / 2, -H / 2)
         ax, ay = draw_background(ctx, s.assets, s.sc.environment.scene_id, W, H, theme, ms["camera.x"])
-        face_right = ax < W * 0.55
+        lay = s.solve_layout(W, H, ax, ay)
         presence = say_presence(s.say, t)
         if presence > 0.01:  # the prop/card steps back while the stickman talks, so the bubble reads cleanly
             ctx.push_group()
-            draw_visual_aid(ctx, s, W, H, t, face_right, ms["object.scale"])
+            draw_visual_aid(ctx, s, W, H, t, lay, ms["object.scale"])
             ctx.pop_group_to_source()
             ctx.paint_with_alpha(1.0 - 0.85 * presence)
         else:
-            draw_visual_aid(ctx, s, W, H, t, face_right, ms["object.scale"])
+            draw_visual_aid(ctx, s, W, H, t, lay, ms["object.scale"])
         U = 0.44 * H
         rest = s.expr.get("mouth_rest", "flat")
         speaking = bool(s.say) and s.say["start"] - 0.03 <= t <= s.say["end"] + 0.05
@@ -907,7 +927,7 @@ def draw_scene(ctx, s: SceneCtx, W: int, H: int, t: float) -> None:
         else:
             mouth = rest
         breath = 1.0 + 0.012 * math.sin(t * 2.6) + (0.02 * math.sin(t * 9.0) if speaking else 0.0)
-        cx, cy = ax + ms["character.x"] * W, ay + ms["character.y"] * H
+        cx, cy = ax + ms["character.x"] * W, ay + ms["character.y"] * H + lay.char_dy
         rot, csc = ms["character.rot"], ms["character.scale"]
         ctx.save()
         ctx.translate(cx, cy)
@@ -929,7 +949,10 @@ def draw_scene(ctx, s: SceneCtx, W: int, H: int, t: float) -> None:
 
     draw_with_transition(ctx, s.trans, t, W, H, content)
     if s.caption and not (s.cap_hidden and s.cap_hidden[0] <= t <= s.cap_hidden[1]):
-        draw_captions(ctx, s.caption, s.words, t, W, H, theme)
+        cap = s.caption
+        if s.layout is not None and s.layout.caption_y is not None:
+            cap = {**s.caption, "position_y": s.layout.caption_y / H}
+        draw_captions(ctx, cap, s.words, t, W, H, theme)
 
 
 def draw_cover_text(ctx, text: str, W: int, H: int, theme) -> None:
@@ -981,6 +1004,25 @@ def ffmpeg_cmd(W: int, H: int, fps: int, master: Path, out: Path, total_sec: flo
             "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)]
 
 
+def layout_report(scenes: List[SceneCtx], ctx, W: int, H: int) -> List[Dict[str, Any]]:
+    """QA pass: solve every scene's layout and list residual overlaps (caption/prop/widget vs the character)."""
+    rep: List[Dict[str, Any]] = []
+    for i, s in enumerate(scenes):
+        try:
+            ctx.save()
+            ax, ay = draw_background(ctx, s.assets, s.sc.environment.scene_id, W, H, s.theme, 0.0)
+            ctx.restore()
+            lay = s.solve_layout(W, H, ax, ay)
+            issues = layout.check(lay)
+            if issues or lay.notes:
+                rep.append({"scene": i, "issues": issues, "notes": lay.notes})
+            for msg in issues:
+                log.warning("layout: scene %d: %s", i, msg)
+        except Exception as e:  # noqa: BLE001 - QA must never block a render
+            log.warning("layout QA scene %d failed: %s", i, e)
+    return rep
+
+
 def render_video(pkg: schemas.AnalysisPackage, timeline: Dict[str, Any], master: Path, out: Path,
                  mode: str, assets: Assets, progress=None) -> Dict[str, Any]:
     W, H, fps = dims_for(pkg.render_config.aspect_ratio, mode)
@@ -991,6 +1033,7 @@ def render_video(pkg: schemas.AnalysisPackage, timeline: Dict[str, Any], master:
     ctx = cairo.Context(surface)
     errlog = common.tmpdir() / f"ffmpeg_{pkg.package_id}.log"
     total_frames = spans[-1][1]
+    lay_issues = layout_report(scenes, ctx, W, H)
     with open(errlog, "wb") as ef:
         proc = subprocess.Popen(ffmpeg_cmd(W, H, fps, master, out, timeline["total_sec"], mode),
                                 stdin=subprocess.PIPE, stderr=ef)
@@ -1011,7 +1054,7 @@ def render_video(pkg: schemas.AnalysisPackage, timeline: Dict[str, Any], master:
     if rc != 0:
         raise RuntimeError(f"ffmpeg failed ({rc}): {errlog.read_text(errors='replace')[-600:]}")
     errlog.unlink(missing_ok=True)
-    return {"video": str(out), "frames": total_frames, "fps": fps, "size": [W, H]}
+    return {"video": str(out), "frames": total_frames, "fps": fps, "size": [W, H], "layout_issues": lay_issues}
 
 
 def render_stills(pkg: schemas.AnalysisPackage, timeline: Dict[str, Any], out_dir: Path, mode: str,
@@ -1065,7 +1108,8 @@ def render_package(package_path: Path, mode: str, out_dir: Path, placeholder_tts
     cover = out_dir / f"{pkg.package_id}_cover.jpg"
     Path(stills["cover"]).replace(cover)
     return {"mode": mode, "video": res["video"], "cover": str(cover), "frames": res["frames"],
-            "fps": res["fps"], "size": res["size"], "duration_sec": mastered["timeline"]["total_sec"]}
+            "fps": res["fps"], "size": res["size"], "duration_sec": mastered["timeline"]["total_sec"],
+            "layout_issues": res.get("layout_issues", [])}
 
 
 # =========================================================================== library thumbnails
