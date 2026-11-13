@@ -25,6 +25,7 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       PACKAGE_PATH: ${{ github.event.client_payload.package_path || inputs.package_path }}
       GH_TOKEN: ${{ github.token }}
+      JOBS_REPO: stevenchen5411/near-stickman-jobs
       STICKMAN_CHATTERBOX_URL: ${{ secrets.STICKMAN_CHATTERBOX_URL }}
       STICKMAN_CHATTERBOX_ID_URL: ${{ secrets.STICKMAN_CHATTERBOX_ID_URL }}
       STICKMAN_F5_ID_URL: ${{ secrets.STICKMAN_F5_ID_URL }}
@@ -43,9 +44,18 @@ jobs:
           case "$PACKAGE_PATH" in
             *..*) echo "invalid package_path" >&2; exit 1 ;;
           esac
-          test -f "$PACKAGE_PATH"
           PACKAGE_ID="$(basename "$PACKAGE_PATH" .json)"
           echo "PACKAGE_ID=$PACKAGE_ID" >> "$GITHUB_ENV"
+
+      - name: Fetch package from the private jobs repo
+        env:
+          JOBS_REPO_TOKEN: ${{ secrets.JOBS_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 "https://x-access-token:${JOBS_REPO_TOKEN}@github.com/${JOBS_REPO}.git" "$RUNNER_TEMP/jobs"
+          test -f "$RUNNER_TEMP/jobs/$PACKAGE_PATH"
+          mkdir -p queue && cp "$RUNNER_TEMP/jobs/$PACKAGE_PATH" "$PACKAGE_PATH"
+          rm -rf "$RUNNER_TEMP/jobs"
 
       - name: Install system packages
         run: |
@@ -77,11 +87,13 @@ jobs:
           test -s "renders/${PACKAGE_ID}_cover.jpg"
           ffprobe -v error -show_entries stream=codec_name,width,height,r_frame_rate -of compact "renders/${PACKAGE_ID}.mp4"
 
-      - name: Publish GitHub Release
+      - name: Publish to the private jobs repo Releases
+        env:
+          GH_TOKEN: ${{ secrets.JOBS_REPO_TOKEN }}
         run: |
           TAG="render-${PACKAGE_ID}"
-          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
-          gh release create "$TAG" \
+          gh release delete "$TAG" -R "$JOBS_REPO" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" -R "$JOBS_REPO" \
             "renders/${PACKAGE_ID}.mp4" \
             "renders/${PACKAGE_ID}_cover.jpg" \
             --title "Render ${PACKAGE_ID}" \

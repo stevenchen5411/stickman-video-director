@@ -72,7 +72,8 @@ class AnalysisDetailView(private val env: Env, private val id: String) {
 
         val act = Ui.card(ctx)
         act.addView(Ui.text(ctx, "Render", 15f, Ui.TEXT, true))
-        act.addView(Ui.button(ctx, "Draft render (480p, on this phone)") { draft() }, Ui.lp(top = 10, ctx = ctx))
+        act.addView(Ui.button(ctx, "Draft render (480p, GitHub Actions)") { cloudDraft() }, Ui.lp(top = 10, ctx = ctx))
+        act.addView(Ui.button(ctx, "Draft render on this phone (fallback)", false) { draft() }, Ui.lp(top = 8, ctx = ctx))
         act.addView(Ui.button(ctx, "HD render (1080p60, GitHub Actions)", false) { hdRender() }, Ui.lp(top = 8, ctx = ctx))
         act.addView(Ui.button(ctx, "Fetch finished cloud render", false) { fetchCloud(loop = false) }, Ui.lp(top = 8, ctx = ctx))
         if (draftFile().isFile) act.addView(Ui.button(ctx, "Play draft", false) { play(draftFile(), "Draft") }, Ui.lp(top = 8, ctx = ctx))
@@ -137,36 +138,56 @@ class AnalysisDetailView(private val env: Env, private val id: String) {
         say("Uploading package to GitHub...")
         val bytes = p.toString().toByteArray(Charsets.UTF_8)
         Bg.io {
-            val up = env.github.putFile("queue/$id.json", bytes, "queue: $id")
+            val up = env.github.putJobFile("queue/$id.json", bytes, "queue: $id")
             if (up != null) { Bg.ui { say("Upload failed: $up", Ui.BAD) }; return@io }
             Bg.ui { say("Triggering render...") }
+            val since = System.currentTimeMillis()
             val d = env.github.dispatchRender(id)
             if (d != null) { Bg.ui { say("Dispatch failed: $d", Ui.BAD) }; return@io }
-            fetchCloudBlocking(loop = true)
+            fetchCloudBlocking(loop = true, since = since)
+        }
+    }
+
+    /** Draft on GitHub Actions: package -> private jobs repo, batch-job dispatch, poll release `draft-<id>`. */
+    private fun cloudDraft() {
+        val p = pkg ?: return
+        if (!env.github.hasToken()) { say("Add a GitHub token in the System tab first.", Ui.BAD); return }
+        say("Uploading package to the private jobs repo...")
+        val bytes = p.toString().toByteArray(Charsets.UTF_8)
+        Bg.io {
+            val up = env.github.putJobFile("queue/$id.json", bytes, "queue: $id")
+            if (up != null) { Bg.ui { say("Upload failed: $up (token needs Contents read/write on near-stickman-jobs)", Ui.BAD) }; return@io }
+            Bg.ui { say("Triggering draft render...") }
+            val since = System.currentTimeMillis()
+            val d = env.github.dispatchBatch("draft-render", id)
+            if (d != null) { Bg.ui { say("Dispatch failed: $d", Ui.BAD) }; return@io }
+            fetchCloudBlocking(loop = true, draft = true, since = since)
         }
     }
 
     private fun fetchCloud(loop: Boolean) { Bg.io { fetchCloudBlocking(loop) } }
 
     /** Polls the `render-<id>` release (every 20 s for up to 45 min when [loop]); downloads <id>.mp4 + cover. */
-    private fun fetchCloudBlocking(loop: Boolean) {
+    private fun fetchCloudBlocking(loop: Boolean, draft: Boolean = false, since: Long = 0L) {
+        val label = if (draft) "draft" else "HD render"
+        val dest = if (draft) draftFile() else hdFile()
         val deadline = System.currentTimeMillis() + 45 * 60_000L
         while (true) {
             if (!alive()) return
-            val rel = env.github.pollRelease(id)
+            val rel = env.github.pollRelease(id, draft, since)
             if (rel?.videoUrl != null) {
-                Bg.ui { say("Downloading render...") }
-                val e = env.github.downloadAsset(rel.videoUrl, hdFile())
+                Bg.ui { say("Downloading $label...") }
+                val e = env.github.downloadAsset(rel.videoUrl, dest)
                 rel.coverUrl?.let { env.github.downloadAsset(it, File(Defaults.STORAGE_DIR, "renders/${id}_cover.jpg")) }
-                Bg.ui { if (e == null) { say("HD render downloaded", Ui.OK); build(); play(hdFile(), "HD") } else say("Download failed: $e", Ui.BAD) }
+                Bg.ui { if (e == null) { say("${label.replaceFirstChar { it.uppercase() }} downloaded", Ui.OK); build(); play(dest, if (draft) "Draft" else "HD") } else say("Download failed: $e", Ui.BAD) }
                 return
             }
             if (!loop || System.currentTimeMillis() > deadline) {
-                val run = env.github.renderRunStatus()
+                val run = env.github.renderRunStatus(draft)
                 Bg.ui { say(if (loop) "Timed out waiting for the cloud render (workflow: ${run ?: "unknown"})." else "Not ready yet (workflow: ${run ?: "unknown"}).", Ui.WARN) }
                 return
             }
-            val run = env.github.renderRunStatus()
+            val run = env.github.renderRunStatus(draft)
             Bg.ui { say("Cloud render in progress (workflow: ${run ?: "queued"}). Keep this screen open.") }
             Thread.sleep(20_000)
         }
