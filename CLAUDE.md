@@ -98,3 +98,14 @@ Milestones run sequentially; after each one, verify, summarize, and WAIT for the
 - [x] M2 (built; verified in sandbox, awaiting Termux run + user confirmation) Autonomous Python engine (server, scout, forensics, director, curator, forge, audit, tts_expressive, audio_master, render_cairo) + `forge.py --rebuild-thumbs` + py_compile + pytest
 - [x] M3 (written; NOT yet compiled: needs CI, see 4c) Android Gradle setup, gate, self-healing auth, bridges (build.gradle.kts, wrapper, manifest, DirectorModels, AuthSelfHealer, WebViewSnifferDialog, ProviderFailoverPool, TokenRefreshWorker, TermuxDiagnostics, TermuxClient, GitHubApiClient, ConnectGateScreen)
 - [x] M4 (written; NOT yet compiled; CI still pending, see 4d) Programmatic 4-tab UI + CI green (MainActivity, MainWorkspaceView, Scout/Studio/Library/System tabs, AnalysisDetailView, StoryboardEditorView) — push and `gh run watch` until APK builds
+
+## 4f. Canvas TTS provider (personal, non-commercial)
+
+- Enable: `STICKMAN_TTS_PROVIDER=canvas` (default unchanged). Env: `CANVAS_TTS_URL` (default `http://127.0.0.1:8767`, never 8765), optional `CANVAS_TTS_TOKEN` (sent as `X-Canvas-Token`). Code: `engine/canvas_tts.py`, hooked in `tts_expressive.synth_line`.
+- API repo `~/personal-canvas-tts-api`: start `bash ~/personal-canvas-tts-api/scripts/start_daemon.sh`, stop `scripts/stop_daemon.sh`, log `~/.canvas-tts/daemon.log`. `/health` needs `browser_alive`, `signed_in`, `iframe_attached`.
+- Queue rules: one request at a time, >= 2.5 s cooldown (kept in `canvas_tts.py`), never parallel; max 2000 chars per request (we split by sentence at <= 1000); requests take tens of seconds, 300 s timeout, one retry on 502/504.
+- Voices: gender follows the voice. Female: Zephyr Kore Aoede Leda Callirrhoe Autonoe Despina Erinome. Male: Puck Charon Fenrir Orus Enceladus Iapetus Umbriel Algieba. Style = 30 Indonesian emotion labels (Bercerita, Berwibawa, Ceria, Tenang, Marah, ...). Per-line style comes from `acting_direction` keywords, else the character default, else Bercerita.
+- Optional map `<STICKMAN_HOME>/config/canvas_voices.json`: `{"<character_id or voice_profile_id>": {"voice": "Kore", "style": "Ceria"}}`.
+- Fallback: if Canvas is down / signed out / errors, the line uses the normal provider; logged as `CANVAS TTS UNAVAILABLE` and shown in engine `/health` -> `canvas_tts` (`up`, `signed_in`, `calibrated`, `needs_refresh`, `fallback`).
+- Calibration: `GET /inspect` (rewrites selectors.json + voices.json), confirm `calibrated: true` in `/voices`; if `signed_in` is false the user syncs Google cookies via `POST /auth/session` (never commit cookies). Re-run `/inspect` when Canvas changes.
+- Check: `python3 canvas_demo/demo.py` (2 characters, 2 styles).

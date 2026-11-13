@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 import claude_web
 import common
 import llm
+import canvas_tts
 import schemas
 
 VERSION = "1.0.0"
@@ -151,6 +152,7 @@ def health(request: Request) -> Dict[str, Any]:
             "auth": {"required": bool(_token()), "ok": _token_ok(request)},
             "ai_status": llm.status(), "claude_bridge": claude_web.bridge_up(0.4),
             # the daemon holds secrets in memory only; the app re-sends them whenever this shows they are missing
+            "canvas_tts": canvas_tts.status(),
             "credentials": {"claude_session": claude_web.has_session(), "keys": sorted(llm.RUNTIME_KEYS)}}
 
 

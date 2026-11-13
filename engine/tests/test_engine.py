@@ -665,6 +665,7 @@ def test_speech_line_is_its_own_clip_placed_around_the_narration(tmp_path, place
 
 
 def test_placeholder_say_clip_is_retried_when_real_voice_is_requested(tmp_path, monkeypatch):
+    monkeypatch.setenv("STICKMAN_TTS", "gemini")
     pkg = schemas.load_package(_speech_pkg(tmp_path))
     tts.synthesize_package(pkg, tmp_path / "w", placeholder=True, library=LIB)
     calls = []

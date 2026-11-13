@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+import canvas_tts
 
 import common
 import llm
@@ -203,6 +204,10 @@ def chatterbox_synthesize(text: str, style: str = "", voice: str = "") -> Tuple[
 
 
 def synth_line(client, text: str, style: str, voice: str) -> Tuple[np.ndarray, int]:
+    if canvas_tts.enabled():
+        r = canvas_tts.synth_or_none(text, voice, style)
+        if r is not None:
+            return r
     if use_chatterbox():
         return chatterbox_synthesize(text, style, voice)
     return gemini_synthesize(client, text, style, voice)
@@ -514,7 +519,7 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
         info[stem] = {"wav": str(adir / f"{stem}.wav"), **meta}
 
     def cache_key(sc, voice: str, style: str) -> str:
-        return hashlib.sha1(f"{sc.narration.text}|{voice}|{style}|{sc.narration.prosody.pace_multiplier}|{placeholder}|{use_chatterbox()}".encode()).hexdigest()[:16]
+        return hashlib.sha1(f"{sc.narration.text}|{voice}|{style}|{sc.narration.prosody.pace_multiplier}|{placeholder}|{use_chatterbox()}|{canvas_tts.enabled()}".encode()).hexdigest()[:16]
 
     def cached(sc, key: str, stem: Optional[str] = None) -> bool:
         stem = stem or sc.id
@@ -579,7 +584,7 @@ def synthesize_package(pkg: schemas.AnalysisPackage, out_dir: Path, placeholder:
         else:
             voice, base = say_voice_for(narr_voice), ""
         style = f"{base} {sp.acting_direction}".strip()
-        key = hashlib.sha1(f"{sp.text}|{voice}|{style}|say|{placeholder}|{use_chatterbox()}".encode()).hexdigest()[:16]
+        key = hashlib.sha1(f"{sp.text}|{voice}|{style}|say|{placeholder}|{use_chatterbox()}|{canvas_tts.enabled()}".encode()).hexdigest()[:16]
         if cached(sc, key, stem):
             continue
         if not placeholder:
